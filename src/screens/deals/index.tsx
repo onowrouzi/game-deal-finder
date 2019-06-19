@@ -70,32 +70,7 @@ export default class DealsScreen extends Component<
   render() {
     return this.state.isReady && this.state.list.length > 0 ? (
       <Container>
-        {(() =>
-          this.state.showSearchBar ? (
-            <Header
-              searchBar
-              ref="searchBar"
-              style={{ backgroundColor: "#212121" }}
-            >
-              <Item>
-                <Icon name="search" />
-                <Input
-                  defaultValue={this._query}
-                  placeholder="Search by title..."
-                  onEndEditing={async evt => {
-                    if (
-                      evt.nativeEvent.text ||
-                      (!evt.nativeEvent.text && this._query)
-                    ) {
-                      await this._refresh(evt.nativeEvent.text);
-                    }
-                  }}
-                />
-              </Item>
-            </Header>
-          ) : (
-            <View />
-          ))()}
+        {this._getSearchBar()}
         <FlatList
           ref="listRef"
           data={this.state.list}
@@ -117,21 +92,24 @@ export default class DealsScreen extends Component<
     ) : this.state.isReady &&
       !this.state.refreshing &&
       this.state.list.length === 0 ? (
-      <Container
-        style={{ flex: 1, justifyContent: "center", alignContent: "center" }}
-      >
-        <Text style={{ textAlign: "center", fontSize: 20 }}>
-          No Deals Found...
-        </Text>
-        <Button transparent full>
-          <Text
-            uppercase={false}
-            style={{ fontSize: 20 }}
-            onPress={() => this._refresh()}
-          >
-            Refresh Results?
+      <Container>
+        {this._getSearchBar()}
+        <View
+          style={{ flex: 1, justifyContent: "center", alignContent: "center" }}
+        >
+          <Text style={{ textAlign: "center", fontSize: 20 }}>
+            No Deals Found...
           </Text>
-        </Button>
+          <Button transparent full>
+            <Text
+              uppercase={false}
+              style={{ fontSize: 20 }}
+              onPress={() => this._refresh()}
+            >
+              Refresh Results?
+            </Text>
+          </Button>
+        </View>
         {this._getOptionsFab()}
       </Container>
     ) : (
@@ -183,6 +161,30 @@ export default class DealsScreen extends Component<
     };
   }
 
+  _getSearchBar() {
+    return this.state.showSearchBar ? (
+      <Header searchBar ref="searchBar" style={{ backgroundColor: "#212121" }}>
+        <Item>
+          <Icon name="search" />
+          <Input
+            defaultValue={this._query}
+            placeholder="Search by title..."
+            onEndEditing={async evt => {
+              if (
+                evt.nativeEvent.text ||
+                (!evt.nativeEvent.text && this._query)
+              ) {
+                await this._refresh(evt.nativeEvent.text);
+              }
+            }}
+          />
+        </Item>
+      </Header>
+    ) : (
+      <View />
+    );
+  }
+
   async _getDeals() {
     if (this._length > -1 && this._length == this.state.list.length) {
       return;
@@ -191,8 +193,6 @@ export default class DealsScreen extends Component<
     if (!this.state.refreshing) {
       this.setState({ showSpinner: true });
     }
-
-    this._offset += this.LIMIT;
 
     const deals = await this._api.getDealsFull(
       {
@@ -204,9 +204,13 @@ export default class DealsScreen extends Component<
       this._query
     );
 
+    this._offset += this.LIMIT;
     this._length = deals.list.length > 0 ? deals.count : this.state.list.length;
 
-    const list = uniqBy(this.state.list.concat(deals.list), "plain").filter(
+    const list = uniqBy(
+      this.state.list.concat(deals.list),
+      d => d.plain + d.shop.id
+    ).filter(
       d =>
         d.price_cut > 0 &&
         (this._params.includeDlc || !d.is_dlc) &&

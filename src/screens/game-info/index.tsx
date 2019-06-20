@@ -19,6 +19,7 @@ import { uniqBy, orderBy } from "lodash";
 import { AsyncStorage, Image } from "react-native";
 
 import { API_KEY } from "react-native-dotenv";
+import { Screens } from "..";
 
 export default class GameInfoScreen extends Component<
   { navigation: any },
@@ -28,6 +29,10 @@ export default class GameInfoScreen extends Component<
     history?: ItadHistoricalGameInfo;
   }
 > {
+  static navigationOptions = ({ navigation }) => ({
+    title: `${navigation.state.params.title}`
+  });
+
   private _api: IsThereAnyDealApi;
   private _plain: string;
   private _shops: ItadShop[];
@@ -115,7 +120,7 @@ export default class GameInfoScreen extends Component<
             <Button
               transparent
               onPress={() =>
-                this.props.navigation.navigate("Webview", {
+                this.props.navigation.navigate(Screens.Webview, {
                   uri: deal.url,
                   title: deal.shop.title || deal.shop.name
                 })

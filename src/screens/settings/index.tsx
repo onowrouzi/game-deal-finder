@@ -8,22 +8,39 @@ import {
   Body,
   Left,
   Picker,
-  Spinner
+  Spinner,
+  Button,
+  Icon
 } from "native-base";
 import { ItadShop, ItadRegions, IsThereAnyDealApi } from "itad-api-client-ts";
 import { API_KEY } from "react-native-dotenv";
 import { Switch, CheckBox, AsyncStorage } from "react-native";
+import { Settings } from "../../types/settings";
+import { DealListStyle } from "../../types/deal-list-style";
+import { SettingTypes } from "../../types/setting-types.enum";
+import { TouchableOpacity } from "react-native-gesture-handler";
+import { Screens } from "..";
 
 export default class SettingsScreen extends PureComponent<
   {},
-  {
-    shops: string[];
-    region?: string;
-    includeDlc: boolean;
-    includeBundles: boolean;
+  Settings & {
     loading: boolean;
   }
 > {
+  static navigationOptions = ({ navigation }) => ({
+    headerLeft: (
+      <TouchableOpacity>
+        <Button
+          transparent
+          light
+          onPress={() => navigation.navigate(Screens.Deals)}
+        >
+          <Icon name="arrow-back" />
+        </Button>
+      </TouchableOpacity>
+    )
+  });
+
   private _api: IsThereAnyDealApi;
   private _shops: ItadShop[];
   private _regions: ItadRegions;
@@ -34,6 +51,7 @@ export default class SettingsScreen extends PureComponent<
     this.state = {
       includeBundles: false,
       includeDlc: false,
+      listStyle: "list",
       shops: [],
       loading: true
     };
@@ -42,24 +60,56 @@ export default class SettingsScreen extends PureComponent<
   }
 
   async componentDidMount() {
-    this._shops = await this._api.getShops();
-    this._regions = await this._api.getRegions();
+    const shopsListPromise = this._api.getShops();
+    const regionsListPromise = this._api.getRegions();
 
-    const shops =
-      JSON.parse(await AsyncStorage.getItem("shops", (err, res) => res)) || [];
-    const region = await AsyncStorage.getItem("region", (err, res) => res);
-    const includeBundles = JSON.parse(
-      await AsyncStorage.getItem("include_bundles", (err, res) => res)
+    const shopsPromise = AsyncStorage.getItem(
+      SettingTypes.SHOPS,
+      (err, res) => res
+    ).then(res => JSON.parse(res) || []);
+    const regionPromise = AsyncStorage.getItem(
+      SettingTypes.REGION,
+      (err, res) => res
     );
-    const includeDlc = JSON.parse(
-      await AsyncStorage.getItem("include_dlc", (err, res) => res)
+    const countryPromise = AsyncStorage.getItem(
+      SettingTypes.COUNTRY,
+      (err, res) => res
     );
+    const includeBundlesPromise = AsyncStorage.getItem(
+      SettingTypes.INCLUDE_BUNDLES,
+      (err, res) => res
+    ).then(res => !(res === "false"));
+    const includeDlcPromise = AsyncStorage.getItem(
+      SettingTypes.INCLUDE_DLC,
+      (err, res) => res
+    ).then(res => !(res === "true"));
+    const listStylePromise = AsyncStorage.getItem(
+      SettingTypes.LIST_STYLE,
+      (err, res) => res
+    ).then(res => res as DealListStyle);
+
+    const resolved = await Promise.all([
+      shopsListPromise,
+      regionsListPromise,
+      shopsPromise,
+      regionPromise,
+      countryPromise,
+      includeBundlesPromise,
+      includeDlcPromise,
+      listStylePromise
+    ]);
+
+    this._shops = resolved[0];
+    this._regions = resolved[1];
 
     this.setState({
-      includeBundles: includeBundles != null ? includeBundles : true,
-      includeDlc: includeDlc != null ? includeDlc : true,
-      shops: shops.length > 0 ? shops : this._shops.map(shop => shop.id),
-      region,
+      shops:
+        resolved[2].length > 0 ? resolved[2] : this._shops.map(shop => shop.id),
+      region: resolved[3],
+      country: resolved[4],
+      includeBundles: resolved[5],
+      includeDlc: resolved[6],
+      listStyle: resolved[7],
       loading: false
     });
   }
@@ -69,7 +119,7 @@ export default class SettingsScreen extends PureComponent<
     this.setState({ includeBundles });
 
     await AsyncStorage.setItem(
-      "include_bundles",
+      SettingTypes.INCLUDE_BUNDLES,
       JSON.stringify(includeBundles)
     );
   }
@@ -78,7 +128,10 @@ export default class SettingsScreen extends PureComponent<
     const includeDlc = !this.state.includeDlc;
     this.setState({ includeDlc });
 
-    await AsyncStorage.setItem("include_dlc", JSON.stringify(includeDlc));
+    await AsyncStorage.setItem(
+      SettingTypes.INCLUDE_DLC,
+      JSON.stringify(includeDlc)
+    );
   }
 
   render() {
@@ -87,6 +140,25 @@ export default class SettingsScreen extends PureComponent<
     ) : (
       <Content>
         <List>
+          <ListItem itemDivider>
+            <Text>Appearance</Text>
+          </ListItem>
+          <ListItem key="liststyle">
+            <Left>
+              <Text>List Style</Text>
+            </Left>
+            <Body>
+              <Picker
+                selectedValue={this.state.listStyle || "0"}
+                onValueChange={async (listStyle, itemIndex) =>
+                  this._setListStyle(listStyle)
+                }
+              >
+                <Picker.Item key="liststyle_list" label="List" value="list" />
+                <Picker.Item key="liststyle_card" label="Card" value="card" />
+              </Picker>
+            </Body>
+          </ListItem>
           <ListItem itemDivider>
             <Text>General</Text>
           </ListItem>
@@ -114,6 +186,7 @@ export default class SettingsScreen extends PureComponent<
             </Left>
             <Body>{this._getRegionsPicker()}</Body>
           </ListItem>
+          {this._getCountriesSection()}
           <ListItem itemDivider>
             <Text>Stores</Text>
           </ListItem>
@@ -121,6 +194,11 @@ export default class SettingsScreen extends PureComponent<
         </List>
       </Content>
     );
+  }
+
+  async _setListStyle(listStyle: DealListStyle) {
+    this.setState({ listStyle });
+    await AsyncStorage.setItem(SettingTypes.LIST_STYLE, listStyle);
   }
 
   _getShopsComponent() {
@@ -170,7 +248,7 @@ export default class SettingsScreen extends PureComponent<
       shops
     });
 
-    await AsyncStorage.setItem("shops", JSON.stringify(shops));
+    await AsyncStorage.setItem(SettingTypes.SHOPS, JSON.stringify(shops));
   }
 
   async _toggleAllShopsSelected() {
@@ -181,7 +259,7 @@ export default class SettingsScreen extends PureComponent<
 
     this.setState({ shops });
 
-    await AsyncStorage.setItem("shops", JSON.stringify([]));
+    await AsyncStorage.setItem(SettingTypes.SHOPS, JSON.stringify([]));
   }
 
   _getRegionsPicker() {
@@ -203,7 +281,71 @@ export default class SettingsScreen extends PureComponent<
   }
 
   async _setRegion(region: string) {
+    let promises = [];
     this.setState({ region: region == "0" ? "" : region });
-    await AsyncStorage.setItem("region", region);
+    promises.push(AsyncStorage.setItem(SettingTypes.REGION, region));
+    if (region == "0") {
+      promises.push(AsyncStorage.setItem(SettingTypes.COUNTRY, ""));
+    }
+
+    const currency =
+      this._regions[region] && this._regions[region].currency
+        ? {
+            sign: this._regions[region].currency.sign,
+            left: this._regions[region].currency.left,
+            code: this._regions[region].currency.code
+          }
+        : {
+            sign: "",
+            left: true,
+            code: ""
+          };
+
+    promises.push(
+      AsyncStorage.setItem(SettingTypes.CURRENCY, JSON.stringify(currency))
+    );
+
+    await Promise.all(promises);
+  }
+
+  _getCountriesSection() {
+    return this.state.region ? (
+      <ListItem key="country">
+        <Left>
+          <Text>Country</Text>
+        </Left>
+        <Body>{this._getCountriesPicker()}</Body>
+      </ListItem>
+    ) : (
+      <View />
+    );
+  }
+
+  _getCountriesPicker() {
+    if (
+      this.state.region &&
+      this._regions[this.state.region] &&
+      this._regions[this.state.region].countries
+    ) {
+      const countryItems = this._regions[this.state.region].countries.map(
+        country => <Picker.Item key={country} label={country} value={country} />
+      );
+      return (
+        <Picker
+          selectedValue={this.state.country || "0"}
+          onValueChange={async (country, itemIndex) =>
+            this._setCountry(country)
+          }
+        >
+          <Picker.Item key={0} label="N/A" value="0" />
+          {countryItems}
+        </Picker>
+      );
+    }
+  }
+
+  async _setCountry(country: string) {
+    this.setState({ country: country == "0" ? "" : country });
+    await AsyncStorage.setItem(SettingTypes.COUNTRY, country);
   }
 }

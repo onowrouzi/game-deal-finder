@@ -1,5 +1,11 @@
 import React, { Component, PureComponent } from "react";
-import { FlatList, Dimensions, View, AsyncStorage } from "react-native";
+import {
+  FlatList,
+  View,
+  AsyncStorage,
+  Image,
+  TouchableOpacity
+} from "react-native";
 import { uniqBy, isEqual } from "lodash";
 import {
   ListItem,
@@ -14,46 +20,62 @@ import {
   Container,
   Header,
   Item,
-  Input
+  Input,
+  Card,
+  CardItem,
+  Thumbnail
 } from "native-base";
 import * as Font from "expo-font";
 
-import { API_KEY } from "react-native-dotenv";
-import {
-  IsThereAnyDealApi,
-  ItadDealFull,
-  ItadGameDealSearchParams
-} from "itad-api-client-ts";
+import { API_KEY, NO_IMG_URL } from "react-native-dotenv";
+import { IsThereAnyDealApi, ItadDealFull } from "itad-api-client-ts";
 import { Ionicons } from "@expo/vector-icons";
-import GameThumbnailComponent from "../../components/game-thumbnail";
+import MenuButton from "../../components/menu-button";
+import RefreshButton from "../../components/refresh-button";
+import SettingsButton from "../../components/settings-button";
+import { DealListStyle } from "../../types/deal-list-style";
+import { Settings } from "../../types/settings";
+import { SettingTypes } from "../../types/setting-types.enum";
+import { Screens } from "..";
 
 export default class DealsScreen extends Component<
   { navigation: any },
   {
     list: ItadDealFull[];
-    showFab: boolean;
     showSpinner: boolean;
     isReady: boolean;
     refreshing: boolean;
     showSearchBar: boolean;
   }
 > {
+  static navigationOptions = ({ navigation }) => ({
+    headerLeft: <MenuButton navigation={navigation} />,
+    headerRight: (
+      <View style={{ flexDirection: "row" }}>
+        <RefreshButton
+          refresh={() => {
+            navigation.state.params.refresh();
+          }}
+        />
+        <SettingsButton navigation={navigation} />
+      </View>
+    )
+  });
+
   private readonly LIMIT = 50;
+
   private _api: IsThereAnyDealApi;
-  private _params: ItadGameDealSearchParams & {
-    includeDlc: boolean;
-    includeBundles: boolean;
-  };
-  private _height: any;
+  private _settings: Settings;
+  private _currency: { sign: string; code: string; left: boolean };
   private _length: number;
   private _offset: number;
   private _query: string;
+  private _searchBarRef: Input;
 
   constructor(props) {
     super(props);
     this.state = {
       list: [],
-      showFab: false,
       showSpinner: false,
       isReady: false,
       refreshing: true,
@@ -62,9 +84,8 @@ export default class DealsScreen extends Component<
     this._api = new IsThereAnyDealApi(API_KEY);
     this._length = -1;
     this._offset = 0;
-    this._height = Dimensions.get("screen").height;
 
-    this._refresh.bind(this);
+    this._refresh = this._refresh.bind(this);
   }
 
   render() {
@@ -72,7 +93,6 @@ export default class DealsScreen extends Component<
       <Container>
         {this._getSearchBar()}
         <FlatList
-          ref="listRef"
           data={this.state.list}
           onRefresh={async () => await this._refresh()}
           refreshing={this.state.refreshing}
@@ -83,11 +103,9 @@ export default class DealsScreen extends Component<
             (this.state.list.length - 5) / (this.state.list.length * 1.0)
           }
           onEndReached={async () => this._getDeals()}
-          onScroll={evt => this._setShowToTopFab(evt)}
         />
         {this._setSpinner()}
-        {this._getScrollToTopFab()}
-        {this._getOptionsFab()}
+        {this._getSearchFab()}
       </Container>
     ) : this.state.isReady &&
       !this.state.refreshing &&
@@ -110,7 +128,7 @@ export default class DealsScreen extends Component<
             </Text>
           </Button>
         </View>
-        {this._getOptionsFab()}
+        {this._getSearchFab()}
       </Container>
     ) : (
       <Spinner />
@@ -118,55 +136,83 @@ export default class DealsScreen extends Component<
   }
 
   async componentDidMount() {
-    this._params = await this._getSearchParams();
-    await this._getDeals();
+    this._settings = await this._getSettings();
+    const promises = [];
+    promises.push(this._getDeals());
+    promises.push(
+      Font.loadAsync({
+        Roboto: require("./../../../node_modules/native-base/Fonts/Roboto.ttf"),
+        Roboto_medium: require("./../../../node_modules/native-base/Fonts/Roboto_medium.ttf"),
+        ...Ionicons.font
+      })
+    );
 
-    await Font.loadAsync({
-      Roboto: require("./../../../node_modules/native-base/Fonts/Roboto.ttf"),
-      Roboto_medium: require("./../../../node_modules/native-base/Fonts/Roboto_medium.ttf"),
-      ...Ionicons.font
-    });
+    await Promise.all(promises);
 
     this.setState({ isReady: true });
 
+    this.props.navigation.setParams({ refresh: this._refresh });
+
     this.props.navigation.addListener("didFocus", async () => {
-      const params = await this._getSearchParams();
-      if (!isEqual(params, this._params)) {
-        this._params = params;
+      const settings = await this._getSettings();
+      if (!isEqual(settings, this._settings)) {
+        this._settings = settings;
         await this._refresh();
       }
     });
   }
 
-  async _getSearchParams(): Promise<
-    ItadGameDealSearchParams & { includeBundles: boolean; includeDlc: boolean }
-  > {
-    const region = await AsyncStorage.getItem("region", (err, res) => res);
-    const shops =
-      JSON.parse(await AsyncStorage.getItem("shops", (err, res) => res)) || [];
-    const includeBundlesJson = JSON.parse(
-      await AsyncStorage.getItem("include_bundles", (err, res) => res)
+  async _getSettings(): Promise<Settings> {
+    const promises = [];
+    promises.push(
+      AsyncStorage.getItem(SettingTypes.CURRENCY, (err, res) => res).then(
+        res => (this._currency = JSON.parse(res))
+      )
     );
-    const includeBundles =
-      includeBundlesJson != null ? includeBundlesJson : true;
-    const includeDlcJson = JSON.parse(
-      await AsyncStorage.getItem("include_dlc", (err, res) => res)
+    promises.push(AsyncStorage.getItem(SettingTypes.REGION, (err, res) => res));
+    promises.push(
+      AsyncStorage.getItem(SettingTypes.SHOPS, (err, res) => res).then(
+        res => JSON.parse(res) || []
+      )
     );
-    const includeDlc = includeDlcJson != null ? includeDlcJson : true;
+    promises.push(
+      AsyncStorage.getItem(
+        SettingTypes.INCLUDE_BUNDLES,
+        (err, res) => res
+      ).then(res => res !== "false")
+    );
+    promises.push(
+      AsyncStorage.getItem(SettingTypes.INCLUDE_DLC, (err, res) => res).then(
+        res => res !== "false"
+      )
+    );
+    promises.push(
+      AsyncStorage.getItem(SettingTypes.LIST_STYLE, (err, res) => res).then(
+        res => res as DealListStyle
+      )
+    );
+
+    const resolved = await Promise.all(promises);
+
     return {
-      region,
-      shops,
-      includeBundles,
-      includeDlc
+      currency: resolved[0],
+      region: resolved[1],
+      shops: resolved[2],
+      includeBundles: resolved[3],
+      includeDlc: resolved[4],
+      listStyle: resolved[5]
     };
   }
 
   _getSearchBar() {
     return this.state.showSearchBar ? (
-      <Header searchBar ref="searchBar" style={{ backgroundColor: "#212121" }}>
+      <Header searchBar style={{ backgroundColor: "#212121" }}>
         <Item>
           <Icon name="search" />
           <Input
+            ref={searchBarRef => {
+              this._searchBarRef = searchBarRef;
+            }}
             defaultValue={this._query}
             placeholder="Search by title..."
             onEndEditing={async evt => {
@@ -196,8 +242,8 @@ export default class DealsScreen extends Component<
 
     const deals = await this._api.getDealsFull(
       {
-        shops: this._params.shops,
-        region: this._params.region,
+        shops: this._settings.shops,
+        region: this._settings.region,
         limit: this.LIMIT,
         offset: this._offset
       },
@@ -213,8 +259,8 @@ export default class DealsScreen extends Component<
     ).filter(
       d =>
         d.price_cut > 0 &&
-        (this._params.includeDlc || !d.is_dlc) &&
-        (this._params.includeBundles || !d.is_package)
+        (this._settings.includeDlc || !d.is_dlc) &&
+        (this._settings.includeBundles || !d.is_package)
     );
 
     this.setState({
@@ -238,55 +284,34 @@ export default class DealsScreen extends Component<
 
   _getDealComponent(d) {
     return d ? (
-      <DealItemComponent deal={d} navigation={this.props.navigation} />
-    ) : (
-      <View />
-    );
-  }
-
-  _setShowToTopFab(evt) {
-    if (evt.nativeEvent.contentOffset.y > this._height && !this.state.showFab) {
-      this.setState({ showFab: true });
-    } else if (
-      evt.nativeEvent.contentOffset.y <= this._height &&
-      this.state.showFab
-    ) {
-      this.setState({ showFab: false });
-    }
-  }
-
-  _getScrollToTopFab() {
-    return this.state.showFab ? (
-      <Fab
-        direction="up"
-        style={{
-          backgroundColor: "#212121",
-          position: "absolute",
-          right: 0,
-          bottom: 0
-        }}
-        position="bottomLeft"
-        onPress={() =>
-          // @ts-ignore
-          this.refs.listRef.scrollToOffset({ offset: 0, animated: true })
+      <DealItemComponent
+        deal={d}
+        listStyle={this._settings.listStyle}
+        navigation={this.props.navigation}
+        currencySign={
+          this._currency ? this._currency.sign || this._currency.code : "$"
         }
-      >
-        <Icon name="arrow-up" />
-      </Fab>
+        currencyOnLeft={!this._currency || this._currency.left}
+      />
     ) : (
       <View />
     );
   }
 
-  _getOptionsFab() {
+  _getSearchFab() {
     return (
       <Fab
         direction="up"
         style={{ backgroundColor: "#212121" }}
         position="bottomRight"
-        onPress={() =>
-          this.setState({ showSearchBar: !this.state.showSearchBar })
-        }
+        onPress={() => {
+          this.setState({ showSearchBar: !this.state.showSearchBar }, () => {
+            if (this._searchBarRef) {
+              // @ts-ignore
+              this._searchBarRef._root.focus();
+            }
+          });
+        }}
       >
         <Icon name="search" />
       </Fab>
@@ -295,39 +320,114 @@ export default class DealsScreen extends Component<
 }
 
 export class DealItemComponent extends PureComponent<
-  { deal: ItadDealFull; navigation: any },
+  {
+    deal: ItadDealFull;
+    currencySign: string;
+    currencyOnLeft: boolean;
+    listStyle?: DealListStyle;
+    navigation: any;
+  },
   {}
 > {
   render() {
-    return (
+    return this.props.listStyle == "card" ? (
+      <Card>
+        <CardItem header bordered>
+          <TouchableOpacity
+            onPress={() =>
+              this.props.navigation.navigate(Screens.GameInfo, {
+                plain: this.props.deal.plain,
+                title: this.props.deal.title
+              })
+            }
+          >
+            <Text uppercase={false}>{this.props.deal.title}</Text>
+          </TouchableOpacity>
+        </CardItem>
+        <CardItem>
+          <TouchableOpacity
+            style={{
+              borderColor: !this.props.deal.image ? "#ccc" : "",
+              borderWidth: !this.props.deal.image ? 1 : 0
+            }}
+            onPress={() =>
+              this.props.navigation.navigate(Screens.GameInfo, {
+                plain: this.props.deal.plain,
+                title: this.props.deal.title
+              })
+            }
+          >
+            <Image
+              resizeMode="contain"
+              source={{
+                uri: this.props.deal.image || NO_IMG_URL
+              }}
+              style={{
+                width: "100%",
+                aspectRatio: this.props.deal.image ? 2 : 2.5,
+                backgroundColor: "#fff"
+              }}
+            />
+          </TouchableOpacity>
+        </CardItem>
+        <CardItem footer bordered>
+          <Left>
+            <Text note>
+              {this._parsePriceString(this.props.deal.price_new.toFixed(2))} @{" "}
+              {this.props.deal.shop.name || this.props.deal.shop.title}
+            </Text>
+          </Left>
+          <Right>
+            <Text>
+              <Text note>-{this.props.deal.price_cut}% </Text>
+              <Text note style={{ textDecorationLine: "line-through" }}>
+                {this._parsePriceString(this.props.deal.price_old.toFixed(2))}
+              </Text>
+            </Text>
+          </Right>
+        </CardItem>
+      </Card>
+    ) : (
       <ListItem
         thumbnail
         key={`${this.props.deal.plain}_${this.props.deal.shop.id}`}
       >
         <Left>
-          <GameThumbnailComponent src={this.props.deal.image} />
+          <Thumbnail
+            square
+            resizeMode="contain"
+            large
+            source={{
+              uri: this.props.deal.image || NO_IMG_URL
+            }}
+          />
         </Left>
         <Body>
-          <Text numberOfLines={1}>{this.props.deal.title}</Text>
-          <Text note numberOfLines={1}>
-            {`$${this.props.deal.price_new.toFixed(2)} @ ${this.props.deal.shop
-              .title || this.props.deal.shop.name}`}
+          <Text numberOfLines={1} style={{ fontSize: 12 }}>
+            {this.props.deal.title}
           </Text>
-          <Text note style={{ textDecorationLine: "line-through" }}>
-            {`$${this.props.deal.price_old.toFixed(2)}`}
+          <Text note numberOfLines={1} style={{ fontSize: 10 }}>
+            {`${this._parsePriceString(
+              this.props.deal.price_new.toFixed(2)
+            )} @ ${this.props.deal.shop.title || this.props.deal.shop.name}`}
           </Text>
-          <Text note numberOfLines={1}>
-            {`-${Math.floor(
-              100 -
-                (this.props.deal.price_new / this.props.deal.price_old) * 100
-            )}%`}
+          <Text>
+            <Text
+              note
+              style={{ textDecorationLine: "line-through", fontSize: 10 }}
+            >
+              {this._parsePriceString(this.props.deal.price_old.toFixed(2))}
+            </Text>
+            <Text note numberOfLines={1} style={{ fontSize: 10 }}>
+              {`  -${this.props.deal.price_cut}%`}
+            </Text>
           </Text>
         </Body>
         <Right>
           <Button
             transparent
             onPress={() =>
-              this.props.navigation.navigate("GameInfo", {
+              this.props.navigation.navigate(Screens.GameInfo, {
                 plain: this.props.deal.plain,
                 title: this.props.deal.title
               })
@@ -338,5 +438,11 @@ export class DealItemComponent extends PureComponent<
         </Right>
       </ListItem>
     );
+  }
+
+  _parsePriceString(price) {
+    return this.props.currencyOnLeft
+      ? `${this.props.currencySign}${price}`
+      : `${price}${this.props.currencySign}`;
   }
 }

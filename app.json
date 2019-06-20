@@ -22,7 +22,8 @@
     },
     "android": {
       "package": "com.onowrouzi.gamedealfinder",
-      "permissions": []
+      "permissions": [],
+      "versionCode": 2
     }
   }
 }

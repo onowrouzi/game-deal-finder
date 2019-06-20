@@ -8,11 +8,10 @@ import { Icon } from "native-base";
 
 import DealsScreen from "./src/screens/deals";
 import WebViewScreen from "./src/screens/webview";
-import MenuButton from "./src/components/menu-button";
 import GameInfoScreen from "./src/screens/game-info";
 import SettingsScreen from "./src/screens/settings";
-import SettingsButton from "./src/components/settings-button";
 import AboutScreen from "./src/screens/about";
+import { Screens } from "./src/screens";
 
 const defaultNavigationOptions = ({ navigation }) => ({
   headerStyle: {
@@ -24,27 +23,17 @@ const defaultNavigationOptions = ({ navigation }) => ({
 
 const DealsStackNavigator = createStackNavigator(
   {
-    Deals: {
-      screen: DealsScreen,
-      navigationOptions: ({ navigation }) => ({
-        headerLeft: <MenuButton navigation={navigation} />,
-        headerRight: <SettingsButton navigation={navigation} />
-      })
+    [Screens.Deals]: {
+      screen: DealsScreen
     },
-    Settings: {
+    [Screens.Settings]: {
       screen: SettingsScreen
     },
-    GameInfo: {
-      screen: GameInfoScreen,
-      navigationOptions: ({ navigation }) => ({
-        title: `${navigation.state.params.title}`
-      })
+    [Screens.GameInfo]: {
+      screen: GameInfoScreen
     },
-    Webview: {
-      screen: WebViewScreen,
-      navigationOptions: ({ navigation }) => ({
-        title: `${navigation.state.params.title}`
-      })
+    [Screens.Webview]: {
+      screen: WebViewScreen
     }
   },
   {
@@ -54,11 +43,8 @@ const DealsStackNavigator = createStackNavigator(
 
 const SettingsStackNavigator = createStackNavigator(
   {
-    Settings: {
-      screen: SettingsScreen,
-      navigationOptions: ({ navigation }) => ({
-        headerLeft: <MenuButton navigation={navigation} />
-      })
+    [Screens.Settings]: {
+      screen: SettingsScreen
     }
   },
   {
@@ -68,13 +54,10 @@ const SettingsStackNavigator = createStackNavigator(
 
 const AboutStackNavigator = createStackNavigator(
   {
-    About: {
-      screen: AboutScreen,
-      navigationOptions: ({ navigation }) => ({
-        headerLeft: <MenuButton navigation={navigation} />
-      })
+    [Screens.About]: {
+      screen: AboutScreen
     },
-    WebView: {
+    [Screens.Webview]: {
       screen: WebViewScreen
     }
   },
@@ -123,7 +106,7 @@ const MyDrawerNavigator = createDrawerNavigator(
     }
   },
   {
-    initialRouteName: "Deals",
+    initialRouteName: Screens.Deals,
     drawerBackgroundColor: "#212121",
     contentOptions: {
       activeTintColor: "white",

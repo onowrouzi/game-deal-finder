@@ -6,6 +6,10 @@ export default class WebViewScreen extends Component<
   { navigation: any },
   { source: WebViewUriSource }
 > {
+  static navigationOptions = ({ navigation }) => ({
+    title: `${navigation.state.params.title}`
+  });
+
   constructor(props) {
     super(props);
 

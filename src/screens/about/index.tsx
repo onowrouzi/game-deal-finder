@@ -4,19 +4,22 @@ import {
   Card,
   CardItem,
   Left,
-  Thumbnail,
   Body,
   Button,
   Icon,
-  Text,
-  H1
+  Text
 } from "native-base";
-import { Image } from "react-native";
+import MenuButton from "../../components/menu-button";
+import { Screens } from "..";
 
 export default class AboutScreen extends PureComponent<
   { navigation: any },
   {}
 > {
+  static navigationOptions = ({ navigation }) => ({
+    headerLeft: <MenuButton navigation={navigation} />
+  });
+
   render() {
     return (
       <Content>
@@ -69,7 +72,7 @@ export default class AboutScreen extends PureComponent<
               <Button
                 transparent
                 onPress={() =>
-                  this.props.navigation.navigate("Webview", {
+                  this.props.navigation.navigate(Screens.Webview, {
                     uri: "https://github.com/onowrouzi/game-deal-finder",
                     title: "Github"
                   })

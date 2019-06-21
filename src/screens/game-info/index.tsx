@@ -12,14 +12,20 @@ import {
   Card,
   CardItem,
   Body,
-  Button,
-  Content
+  Content,
+  Right,
+  Container,
+  Left
 } from "native-base";
 import { uniqBy, orderBy } from "lodash";
-import { AsyncStorage, Image } from "react-native";
+import { AsyncStorage, Image, TouchableOpacity } from "react-native";
 
 import { API_KEY } from "react-native-dotenv";
 import { Screens } from "..";
+import { parsePriceString } from "../../services/price-parser";
+import { Currency } from "../../types/currency";
+import { Themes } from "../../services/themes";
+import { LoadingScreen } from "../../components/loading-screen";
 
 export default class GameInfoScreen extends Component<
   { navigation: any },
@@ -36,6 +42,8 @@ export default class GameInfoScreen extends Component<
   private _api: IsThereAnyDealApi;
   private _plain: string;
   private _shops: ItadShop[];
+  private _currency: Currency;
+  private _style: any;
 
   constructor(props) {
     super(props);
@@ -43,23 +51,42 @@ export default class GameInfoScreen extends Component<
     this.state = {};
     this._api = new IsThereAnyDealApi(API_KEY);
     this._plain = this.props.navigation.getParam("plain", "");
+    this._style = {};
   }
 
   async componentDidMount() {
-    const shops = JSON.parse(
-      await AsyncStorage.getItem("shops", (err, res) => res)
+    this._style = Themes.getThemeStyles();
+
+    const promises = [];
+    promises.push(
+      AsyncStorage.getItem("currency", (err, res) => res).then(
+        res => JSON.parse(res) || {}
+      )
     );
-    const region = await AsyncStorage.getItem("region", (err, res) => res);
-    const game = await this._api.getGameInfo([this._plain]);
+    promises.push(
+      AsyncStorage.getItem("shops", (err, res) => res).then(
+        res => JSON.parse(res) || []
+      )
+    );
+    promises.push(AsyncStorage.getItem("region", (err, res) => res));
+    promises.push(this._api.getGameInfo([this._plain]));
+    promises.push(
+      this._api.getHistoricalLow({
+        plains: [this._plain]
+      })
+    );
+    promises.push(this._api.getShops());
+
+    const resolved = await Promise.all(promises);
+
+    this._currency = resolved[0];
+    this._shops = resolved[5];
+
     const prices = await this._api.getGamePrices({
       plains: [this._plain],
-      shops,
-      region
+      shops: resolved[1],
+      region: resolved[2]
     });
-    const history = await this._api.getHistoricalLow({
-      plains: [this._plain]
-    });
-    this._shops = await this._api.getShops();
 
     const deals = prices[this._plain].list
       .filter(d => d.price_cut > 0)
@@ -69,38 +96,32 @@ export default class GameInfoScreen extends Component<
       });
 
     this.setState({
-      game: game[this._plain],
+      game: resolved[3][this._plain],
       deals,
-      history: history[this._plain]
+      history: resolved[4][this._plain]
     });
   }
 
   render() {
     if (!this.state.game) {
-      return <Spinner />;
+      return <LoadingScreen />;
     }
 
     return (
-      <Content>
+      <Content style={this._style.primary}>
         {(() => {
           if (this.state.game.image) {
             return (
-              <Card style={{ flex: 0 }}>
-                <CardItem>
-                  <Body>
-                    <Image
-                      source={{ uri: this.state.game.image }}
-                      style={{ width: "100%", aspectRatio: 2 }}
-                    />
-                  </Body>
-                </CardItem>
-              </Card>
+              <Image
+                source={{ uri: this.state.game.image }}
+                style={{ width: "100%", aspectRatio: 2 }}
+              />
             );
           }
         })()}
-        <Card>
-          <CardItem header bordered>
-            <Text>Deals</Text>
+        <Card style={this._style.primary}>
+          <CardItem header bordered style={this._style.secondary}>
+            <Text style={this._style.secondary}>Deals</Text>
           </CardItem>
           {this._getDealsComponents()}
         </Card>
@@ -115,40 +136,59 @@ export default class GameInfoScreen extends Component<
         "price_new"
       );
       return deals.map(deal => (
-        <CardItem bordered key={deal.shop.id}>
-          <Body>
-            <Button
-              transparent
-              onPress={() =>
-                this.props.navigation.navigate(Screens.Webview, {
-                  uri: deal.url,
-                  title: deal.shop.title || deal.shop.name
-                })
-              }
-            >
-              <Text style={{ color: deal.shop.color, fontWeight: "bold" }}>
+        <TouchableOpacity
+          onPress={() =>
+            this.props.navigation.navigate(Screens.Webview, {
+              uri: deal.url,
+              title: deal.shop.title || deal.shop.name
+            })
+          }
+          key={deal.shop.id}
+          style={{
+            borderWidth: 0.5,
+            borderColor: this._style.secondary.backgroundColor
+          }}
+        >
+          <CardItem style={this._style.primary}>
+            <Left>
+              <Text
+                style={[
+                  this._style.primary,
+                  { color: deal.shop.color, fontWeight: "bold" }
+                ]}
+              >
                 {deal.shop.title || deal.shop.name}
               </Text>
-            </Button>
-            <Text
-              style={{ marginLeft: 16 }}
-              note
-              numberOfLines={1}
-            >{`$${deal.price_new.toFixed(2)}`}</Text>
-            <Text
-              note
-              style={{
-                textDecorationLine: "line-through",
-                marginLeft: 16
-              }}
-            >
-              {`$${deal.price_old.toFixed(2)}`}
-            </Text>
-            <Text note numberOfLines={1} style={{ marginLeft: 16 }}>
-              {`-${Math.floor(100 - (deal.price_new / deal.price_old) * 100)}%`}
-            </Text>
-          </Body>
-        </CardItem>
+            </Left>
+            <Right style={this._style.primary}>
+              <Text style={this._style.primary} numberOfLines={1}>
+                <Text note numberOfLines={1} style={{ fontSize: 10 }}>
+                  {`${parsePriceString(
+                    deal.price_new.toFixed(2),
+                    this._currency.sign,
+                    this._currency.left
+                  )}    `}
+                </Text>
+                <Text
+                  note
+                  style={{
+                    textDecorationLine: "line-through",
+                    fontSize: 10
+                  }}
+                >
+                  {parsePriceString(
+                    deal.price_old.toFixed(2),
+                    this._currency.sign,
+                    this._currency.left
+                  )}
+                </Text>
+                <Text note numberOfLines={1} style={{ fontSize: 10 }}>
+                  {`    -${deal.price_cut}%`}
+                </Text>
+              </Text>
+            </Right>
+          </CardItem>
+        </TouchableOpacity>
       ));
     }
   }

@@ -7,23 +7,28 @@ import {
   Text,
   Body,
   Left,
-  Picker,
   Spinner,
   Button,
-  Icon
+  Icon,
+  Container,
+  Right,
+  CheckBox
 } from "native-base";
 import { ItadShop, ItadRegions, IsThereAnyDealApi } from "itad-api-client-ts";
 import { API_KEY } from "react-native-dotenv";
-import { Switch, CheckBox, AsyncStorage } from "react-native";
+import { Picker, Switch } from "react-native";
 import { Settings } from "../../types/settings";
 import { DealListStyle } from "../../types/deal-list-style";
 import { SettingTypes } from "../../types/setting-types.enum";
 import { TouchableOpacity } from "react-native-gesture-handler";
 import { Screens } from "..";
+import { Themes } from "../../services/themes";
+import SettingsUtility from "../../services/settings";
 
 export default class SettingsScreen extends PureComponent<
   {},
   Settings & {
+    style: any;
     loading: boolean;
   }
 > {
@@ -53,63 +58,38 @@ export default class SettingsScreen extends PureComponent<
       includeDlc: false,
       listStyle: "list",
       shops: [],
+      style: {},
       loading: true
     };
 
     this._api = new IsThereAnyDealApi(API_KEY);
   }
 
-  async componentDidMount() {
+  async componentWillMount() {
+    const settings = SettingsUtility.getSettings();
+
+    const style = Themes.getThemeStyles();
+    this.setState({ style });
+
     const shopsListPromise = this._api.getShops();
     const regionsListPromise = this._api.getRegions();
 
-    const shopsPromise = AsyncStorage.getItem(
-      SettingTypes.SHOPS,
-      (err, res) => res
-    ).then(res => JSON.parse(res) || []);
-    const regionPromise = AsyncStorage.getItem(
-      SettingTypes.REGION,
-      (err, res) => res
-    );
-    const countryPromise = AsyncStorage.getItem(
-      SettingTypes.COUNTRY,
-      (err, res) => res
-    );
-    const includeBundlesPromise = AsyncStorage.getItem(
-      SettingTypes.INCLUDE_BUNDLES,
-      (err, res) => res
-    ).then(res => !(res === "false"));
-    const includeDlcPromise = AsyncStorage.getItem(
-      SettingTypes.INCLUDE_DLC,
-      (err, res) => res
-    ).then(res => !(res === "true"));
-    const listStylePromise = AsyncStorage.getItem(
-      SettingTypes.LIST_STYLE,
-      (err, res) => res
-    ).then(res => res as DealListStyle);
-
-    const resolved = await Promise.all([
-      shopsListPromise,
-      regionsListPromise,
-      shopsPromise,
-      regionPromise,
-      countryPromise,
-      includeBundlesPromise,
-      includeDlcPromise,
-      listStylePromise
-    ]);
+    const resolved = await Promise.all([shopsListPromise, regionsListPromise]);
 
     this._shops = resolved[0];
     this._regions = resolved[1];
 
     this.setState({
       shops:
-        resolved[2].length > 0 ? resolved[2] : this._shops.map(shop => shop.id),
-      region: resolved[3],
-      country: resolved[4],
-      includeBundles: resolved[5],
-      includeDlc: resolved[6],
-      listStyle: resolved[7],
+        settings.shops.length > 0
+          ? settings.shops
+          : this._shops.map(shop => shop.id),
+      region: settings.region,
+      country: settings.country,
+      includeBundles: settings.includeBundles,
+      includeDlc: settings.includeDlc,
+      listStyle: settings.listStyle,
+      darkMode: settings.darkMode,
       loading: false
     });
   }
@@ -118,9 +98,9 @@ export default class SettingsScreen extends PureComponent<
     const includeBundles = !this.state.includeBundles;
     this.setState({ includeBundles });
 
-    await AsyncStorage.setItem(
+    await SettingsUtility.setSetting(
       SettingTypes.INCLUDE_BUNDLES,
-      JSON.stringify(includeBundles)
+      includeBundles
     );
   }
 
@@ -128,27 +108,39 @@ export default class SettingsScreen extends PureComponent<
     const includeDlc = !this.state.includeDlc;
     this.setState({ includeDlc });
 
-    await AsyncStorage.setItem(
-      SettingTypes.INCLUDE_DLC,
-      JSON.stringify(includeDlc)
-    );
+    await SettingsUtility.setSetting(SettingTypes.INCLUDE_DLC, includeDlc);
   }
 
   render() {
     return this.state.loading ? (
-      <Spinner />
+      <Container style={this.state.style.primary}>
+        <Spinner />
+      </Container>
     ) : (
-      <Content>
+      <Content style={this.state.style.primary}>
         <List>
-          <ListItem itemDivider>
-            <Text>Appearance</Text>
+          <ListItem itemDivider style={this.state.style.secondary}>
+            <Text style={this.state.style.secondary}>Appearance</Text>
+          </ListItem>
+          <ListItem key={"dark_mode"}>
+            <Left>
+              <Text style={this.state.style.primary}>Dark Mode</Text>
+            </Left>
+            <Right>
+              <Switch
+                value={this.state.darkMode}
+                onValueChange={() => this._toggleDarkMode()}
+              />
+            </Right>
           </ListItem>
           <ListItem key="liststyle">
             <Left>
-              <Text>List Style</Text>
+              <Text style={this.state.style.primary}>List Style</Text>
             </Left>
             <Body>
               <Picker
+                style={this.state.style.primary}
+                itemStyle={this.state.style.primary}
                 selectedValue={this.state.listStyle || "0"}
                 onValueChange={async (listStyle, itemIndex) =>
                   this._setListStyle(listStyle)
@@ -159,36 +151,40 @@ export default class SettingsScreen extends PureComponent<
               </Picker>
             </Body>
           </ListItem>
-          <ListItem itemDivider>
-            <Text>General</Text>
+          <ListItem itemDivider style={this.state.style.secondary}>
+            <Text style={this.state.style.secondary}>General</Text>
           </ListItem>
           <ListItem key={"include_dlc"}>
-            <Switch
-              value={this.state.includeDlc}
-              onValueChange={async => this._toggleIncludeDlc()}
-            />
-            <Body>
-              <Text>Include DLC</Text>
-            </Body>
-          </ListItem>
-          <ListItem key={"include_bundles"}>
-            <Switch
-              value={this.state.includeBundles}
-              onValueChange={async => this._toggleIncludeBundles()}
-            />
-            <Body>
-              <Text>Include Bundles</Text>
-            </Body>
-          </ListItem>
-          <ListItem key="region">
             <Left>
-              <Text>Region</Text>
+              <Text style={this.state.style.primary}>Include DLC</Text>
+            </Left>
+            <Right>
+              <Switch
+                value={this.state.includeDlc}
+                onValueChange={async => this._toggleIncludeDlc()}
+              />
+            </Right>
+          </ListItem>
+          <ListItem key={"include_bundles"} style={this.state.style.primary}>
+            <Left>
+              <Text style={this.state.style.primary}>Include Bundles</Text>
+            </Left>
+            <Right>
+              <Switch
+                value={this.state.includeBundles}
+                onValueChange={async => this._toggleIncludeBundles()}
+              />
+            </Right>
+          </ListItem>
+          <ListItem key="region" style={this.state.style.primary}>
+            <Left>
+              <Text style={this.state.style.primary}>Region</Text>
             </Left>
             <Body>{this._getRegionsPicker()}</Body>
           </ListItem>
           {this._getCountriesSection()}
-          <ListItem itemDivider>
-            <Text>Stores</Text>
+          <ListItem itemDivider style={this.state.style.secondary}>
+            <Text style={this.state.style.secondary}>Stores</Text>
           </ListItem>
           {this._getShopsComponent()}
         </List>
@@ -198,33 +194,46 @@ export default class SettingsScreen extends PureComponent<
 
   async _setListStyle(listStyle: DealListStyle) {
     this.setState({ listStyle });
-    await AsyncStorage.setItem(SettingTypes.LIST_STYLE, listStyle);
+    await SettingsUtility.setSetting(SettingTypes.LIST_STYLE, listStyle);
+  }
+
+  async _toggleDarkMode() {
+    const darkMode = !this.state.darkMode;
+    this.setState({ darkMode, loading: true });
+    await SettingsUtility.setSetting(SettingTypes.DARK_MODE, darkMode);
+    const style = Themes.setThemeStyles(darkMode);
+    this.setState({ style, loading: false });
   }
 
   _getShopsComponent() {
     return this._shops ? (
       [
-        <ListItem key="all">
+        <ListItem key="all" style={this.state.style.primary}>
           <CheckBox
-            value={this._isShopSelected("all")}
-            onValueChange={() => this._toggleAllShopsSelected()}
+            color={this.state.style.checkbox.color}
+            checked={this._isShopSelected("all")}
+            onPress={() => this._toggleAllShopsSelected()}
           />
           <Body>
-            <Text>All Stores</Text>
+            <Text style={this.state.style.primary}>All Stores</Text>
           </Body>
         </ListItem>
       ].concat(
         this._shops.map(shop => (
           <ListItem
+            style={this.state.style.primary}
             key={shop.id}
             onPress={() => this._toggleShopSelected(shop.id)}
           >
             <CheckBox
-              value={this._isShopSelected(shop.id)}
-              onValueChange={() => this._toggleShopSelected(shop.id)}
+              color={this.state.style.checkbox.color}
+              checked={this._isShopSelected(shop.id)}
+              onPress={() => this._toggleShopSelected(shop.id)}
             />
             <Body>
-              <Text>{shop.name || shop.title}</Text>
+              <Text style={this.state.style.primary}>
+                {shop.name || shop.title}
+              </Text>
             </Body>
           </ListItem>
         ))
@@ -248,7 +257,7 @@ export default class SettingsScreen extends PureComponent<
       shops
     });
 
-    await AsyncStorage.setItem(SettingTypes.SHOPS, JSON.stringify(shops));
+    await SettingsUtility.setSetting(SettingTypes.SHOPS, shops);
   }
 
   async _toggleAllShopsSelected() {
@@ -259,7 +268,7 @@ export default class SettingsScreen extends PureComponent<
 
     this.setState({ shops });
 
-    await AsyncStorage.setItem(SettingTypes.SHOPS, JSON.stringify([]));
+    await SettingsUtility.setSetting(SettingTypes.SHOPS, []);
   }
 
   _getRegionsPicker() {
@@ -269,6 +278,8 @@ export default class SettingsScreen extends PureComponent<
     ));
     return regions && regions.length > 0 ? (
       <Picker
+        style={this.state.style.primary}
+        itemStyle={{ backgroundColor: "#333" }}
         selectedValue={this.state.region || "0"}
         onValueChange={async (region, itemIndex) => this._setRegion(region)}
       >
@@ -283,9 +294,9 @@ export default class SettingsScreen extends PureComponent<
   async _setRegion(region: string) {
     let promises = [];
     this.setState({ region: region == "0" ? "" : region });
-    promises.push(AsyncStorage.setItem(SettingTypes.REGION, region));
+    promises.push(SettingsUtility.setSetting(SettingTypes.REGION, region));
     if (region == "0") {
-      promises.push(AsyncStorage.setItem(SettingTypes.COUNTRY, ""));
+      promises.push(SettingsUtility.setSetting(SettingTypes.COUNTRY, ""));
     }
 
     const currency =
@@ -301,18 +312,16 @@ export default class SettingsScreen extends PureComponent<
             code: ""
           };
 
-    promises.push(
-      AsyncStorage.setItem(SettingTypes.CURRENCY, JSON.stringify(currency))
-    );
+    promises.push(SettingsUtility.setSetting(SettingTypes.CURRENCY, currency));
 
     await Promise.all(promises);
   }
 
   _getCountriesSection() {
     return this.state.region ? (
-      <ListItem key="country">
+      <ListItem key="country" style={this.state.style.primary}>
         <Left>
-          <Text>Country</Text>
+          <Text style={this.state.style.primary}>Country</Text>
         </Left>
         <Body>{this._getCountriesPicker()}</Body>
       </ListItem>
@@ -332,6 +341,8 @@ export default class SettingsScreen extends PureComponent<
       );
       return (
         <Picker
+          style={[this.state.style.primary, { textAlign: "right" }]}
+          itemStyle={[this.state.style.primary, { textAlign: "right" }]}
           selectedValue={this.state.country || "0"}
           onValueChange={async (country, itemIndex) =>
             this._setCountry(country)
@@ -346,6 +357,6 @@ export default class SettingsScreen extends PureComponent<
 
   async _setCountry(country: string) {
     this.setState({ country: country == "0" ? "" : country });
-    await AsyncStorage.setItem(SettingTypes.COUNTRY, country);
+    await SettingsUtility.setSetting(SettingTypes.COUNTRY, country);
   }
 }

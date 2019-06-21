@@ -6,4 +6,5 @@ export type Settings = ItadGameDealSearchParams & {
   includeBundles: boolean;
   currency?: string;
   listStyle?: DealListStyle;
+  darkMode?: boolean;
 };

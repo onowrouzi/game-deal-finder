@@ -1,4 +1,5 @@
 export enum Screens {
+  Initial = "Initial",
   Deals = "Deals",
   Settings = "Settings",
   GameInfo = "GameInfo",

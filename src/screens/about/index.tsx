@@ -11,43 +11,63 @@ import {
 } from "native-base";
 import MenuButton from "../../components/menu-button";
 import { Screens } from "..";
+import { Themes } from "../../services/themes";
 
 export default class AboutScreen extends PureComponent<
   { navigation: any },
-  {}
+  { style: any }
 > {
   static navigationOptions = ({ navigation }) => ({
     headerLeft: <MenuButton navigation={navigation} />
   });
+  constructor(props) {
+    super(props);
+
+    this.state = {
+      style: {}
+    };
+    this._setStyles = this._setStyles.bind(this);
+  }
+
+  async componentDidMount() {
+    this._setStyles();
+
+    this.props.navigation.addListener("willFocus", this._setStyles);
+  }
+
+  _setStyles() {
+    const style = Themes.getThemeStyles();
+    this.setState({ style });
+  }
 
   render() {
     return (
-      <Content>
-        <Card style={{ paddingBottom: 10 }}>
-          <CardItem header bordered>
-            <Text style={{ fontSize: 20, color: "#000" }}>
+      <Content style={this.state.style.primary}>
+        <Card style={[this.state.style.primary, { paddingBottom: 10 }]}>
+          <CardItem header bordered style={this.state.style.primary}>
+            <Text style={[this.state.style.primary, { fontSize: 20 }]}>
               Game Deal Finder
             </Text>
           </CardItem>
-          <CardItem>
+          <CardItem style={this.state.style.primary}>
             <Body>
-              <Text note>
+              <Text note style={this.state.style.primary}>
                 This app was made with React Native as a hobby project utlizing
                 data from IsThereAnyDeal.
               </Text>
             </Body>
           </CardItem>
-          <CardItem>
+          <CardItem style={this.state.style.primary}>
             <Body>
-              <Text note>
+              <Text note style={this.state.style.primary}>
                 This project, however, is not officially affiliated with
                 IsThereAnyDeal in any capacity.
               </Text>
             </Body>
           </CardItem>
         </Card>
-        <Card>
-          <CardItem>
+        <Card style={this.state.style.primary}>
+          <CardItem style={this.state.style.primary}>
             <Body>
               <Button
                 transparent
@@ -58,16 +78,19 @@ export default class AboutScreen extends PureComponent<
                   })
                 }
               >
-                <Icon name="link" />
-                <Text uppercase={false}>
+                <Icon name="link" style={this.state.style.link} />
+                <Text
+                  uppercase={false}
+                  style={[this.state.style.link, { fontSize: 12 }]}
+                >
                   Data retrieved utilizing the IsThereAnyDeal API.
                 </Text>
               </Button>
             </Body>
           </CardItem>
         </Card>
-        <Card>
-          <CardItem>
+        <Card style={this.state.style.primary}>
+          <CardItem style={this.state.style.primary}>
             <Left>
               <Button
                 transparent
@@ -78,8 +101,13 @@ export default class AboutScreen extends PureComponent<
                   })
                 }
               >
-                <Icon name="logo-github" />
-                <Text uppercase={false}>Open source, always and forever!</Text>
+                <Icon name="logo-github" style={this.state.style.link} />
+                <Text
+                  uppercase={false}
+                  style={[this.state.style.link, { fontSize: 12 }]}
+                >
+                  Open source, always and forever!
+                </Text>
               </Button>
             </Left>
           </CardItem>

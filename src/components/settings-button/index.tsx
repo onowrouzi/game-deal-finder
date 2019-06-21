@@ -14,7 +14,9 @@ export default class SettingsButton extends Component<{ navigation: any }, {}> {
         <Button
           transparent
           light
-          onPress={() => this.props.navigation.navigate(Screens.Settings)}
+          onPress={() => {
+            this.props.navigation.navigate(Screens.Settings);
+          }}
         >
           <Icon name="settings" />
         </Button>

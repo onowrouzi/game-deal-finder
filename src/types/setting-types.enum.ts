@@ -1,8 +1,8 @@
 export enum SettingTypes {
-  LIST_STYLE = "list_style",
-  DARK_MODE = "dark_mode",
-  INCLUDE_DLC = "include_dlc",
-  INCLUDE_BUNDLES = "include_bundles",
+  LIST_STYLE = "listStyle",
+  DARK_MODE = "darkMode",
+  INCLUDE_DLC = "includeDlc",
+  INCLUDE_BUNDLES = "includeBundles",
   CURRENCY = "currency",
   COUNTRY = "country",
   REGION = "region",

@@ -5,7 +5,7 @@
     "privacy": "public",
     "sdkVersion": "33.0.0",
     "platforms": ["ios", "android", "web"],
-    "version": "1.0.2",
+    "version": "1.0.4",
     "orientation": "portrait",
     "icon": "./assets/icon-android.png",
     "splash": {
@@ -24,7 +24,7 @@
     "android": {
       "package": "com.onowrouzi.gamedealfinder",
       "permissions": [],
-      "versionCode": 3
+      "versionCode": 4
     }
   }
 }

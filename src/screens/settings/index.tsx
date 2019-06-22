@@ -24,9 +24,10 @@ import { TouchableOpacity } from "react-native-gesture-handler";
 import { Screens } from "..";
 import { Themes } from "../../services/themes";
 import SettingsUtility from "../../services/settings";
+import { LoadingScreen } from "../../components/loading-screen";
 
 export default class SettingsScreen extends PureComponent<
-  {},
+  { navigation: any },
   Settings & {
     style: any;
     loading: boolean;
@@ -65,7 +66,7 @@ export default class SettingsScreen extends PureComponent<
     this._api = new IsThereAnyDealApi(API_KEY);
   }
 
-  async componentWillMount() {
+  async componentDidMount() {
     const settings = SettingsUtility.getSettings();
 
     const style = Themes.getThemeStyles();
@@ -113,9 +114,7 @@ export default class SettingsScreen extends PureComponent<
 
   render() {
     return this.state.loading ? (
-      <Container style={this.state.style.primary}>
-        <Spinner />
-      </Container>
+      <LoadingScreen />
     ) : (
       <Content style={this.state.style.primary}>
         <List>
@@ -206,8 +205,8 @@ export default class SettingsScreen extends PureComponent<
   }
 
   _getShopsComponent() {
-    return this._shops ? (
-      [
+    if (this._shops) {
+      return [
         <ListItem key="all" style={this.state.style.primary}>
           <CheckBox
             color={this.state.style.checkbox.color}
@@ -237,10 +236,8 @@ export default class SettingsScreen extends PureComponent<
             </Body>
           </ListItem>
         ))
-      )
-    ) : (
-      <View />
-    );
+      );
+    }
   }
 
   _isShopSelected(shopId: string) {
@@ -273,22 +270,22 @@ export default class SettingsScreen extends PureComponent<
 
   _getRegionsPicker() {
     const regions = Object.keys(this._regions || {});
-    const regionItems = regions.map(region => (
-      <Picker.Item key={region} label={region.toUpperCase()} value={region} />
-    ));
-    return regions && regions.length > 0 ? (
-      <Picker
-        style={this.state.style.primary}
-        itemStyle={{ backgroundColor: "#333" }}
-        selectedValue={this.state.region || "0"}
-        onValueChange={async (region, itemIndex) => this._setRegion(region)}
-      >
-        <Picker.Item key={0} label="N/A" value="0" />
-        {regionItems}
-      </Picker>
-    ) : (
-      <View />
-    );
+    if (regions && regions.length > 0) {
+      const regionItems = regions.map(region => (
+        <Picker.Item key={region} label={region.toUpperCase()} value={region} />
+      ));
+      return (
+        <Picker
+          style={this.state.style.primary}
+          itemStyle={{ backgroundColor: "#333" }}
+          selectedValue={this.state.region || "0"}
+          onValueChange={async (region, itemIndex) => this._setRegion(region)}
+        >
+          <Picker.Item key={0} label="N/A" value="0" />
+          {regionItems}
+        </Picker>
+      );
+    }
   }
 
   async _setRegion(region: string) {
@@ -318,16 +315,16 @@ export default class SettingsScreen extends PureComponent<
   }
 
   _getCountriesSection() {
-    return this.state.region ? (
-      <ListItem key="country" style={this.state.style.primary}>
-        <Left>
-          <Text style={this.state.style.primary}>Country</Text>
-        </Left>
-        <Body>{this._getCountriesPicker()}</Body>
-      </ListItem>
-    ) : (
-      <View />
-    );
+    if (this.state.region) {
+      return (
+        <ListItem key="country" style={this.state.style.primary}>
+          <Left>
+            <Text style={this.state.style.primary}>Country</Text>
+          </Left>
+          <Body>{this._getCountriesPicker()}</Body>
+        </ListItem>
+      );
+    }
   }
 
   _getCountriesPicker() {

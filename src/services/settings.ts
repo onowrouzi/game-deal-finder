@@ -40,8 +40,12 @@ export default class SettingsUtility {
   }
 
   static shouldRefresh(): boolean {
-    this._shouldRefresh = !this._shouldRefresh;
-    return !this._shouldRefresh;
+    if (this._shouldRefresh) {
+      this._shouldRefresh = false;
+      return true;
+    }
+
+    return false;
   }
 
   private static async _init(): Promise<Settings> {

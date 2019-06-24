@@ -1,16 +1,13 @@
 import React, { PureComponent } from "react";
 import {
-  View,
   Content,
   List,
   ListItem,
   Text,
   Body,
   Left,
-  Spinner,
   Button,
   Icon,
-  Container,
   Right,
   CheckBox
 } from "native-base";
@@ -30,6 +27,8 @@ export default class SettingsScreen extends PureComponent<
   { navigation: any },
   Settings & {
     style: any;
+    availableShops: ItadShop[];
+    availableRegions: ItadRegions;
     loading: boolean;
   }
 > {
@@ -48,18 +47,23 @@ export default class SettingsScreen extends PureComponent<
   });
 
   private _api: IsThereAnyDealApi;
-  private _shops: ItadShop[];
-  private _regions: ItadRegions;
 
   constructor(props) {
     super(props);
 
+    const settings = SettingsUtility.getSettings();
+
     this.state = {
-      includeBundles: false,
-      includeDlc: false,
-      listStyle: "list",
-      shops: [],
-      style: {},
+      shops: settings.shops,
+      region: settings.region,
+      country: settings.country,
+      includeBundles: settings.includeBundles,
+      includeDlc: settings.includeDlc,
+      listStyle: settings.listStyle,
+      darkMode: settings.darkMode,
+      style: Themes.getThemeStyles(),
+      availableRegions: {},
+      availableShops: [],
       loading: true
     };
 
@@ -67,32 +71,15 @@ export default class SettingsScreen extends PureComponent<
   }
 
   async componentDidMount() {
-    const settings = SettingsUtility.getSettings();
+    const availableShops = await this._api.getShops();
+    const availableRegions = await this._api.getRegions();
 
-    const style = Themes.getThemeStyles();
-    this.setState({ style });
+    const shops =
+      this.state.shops.length === 0
+        ? availableShops.map(shop => shop.id)
+        : this.state.shops;
 
-    const shopsListPromise = this._api.getShops();
-    const regionsListPromise = this._api.getRegions();
-
-    const resolved = await Promise.all([shopsListPromise, regionsListPromise]);
-
-    this._shops = resolved[0];
-    this._regions = resolved[1];
-
-    this.setState({
-      shops:
-        settings.shops.length > 0
-          ? settings.shops
-          : this._shops.map(shop => shop.id),
-      region: settings.region,
-      country: settings.country,
-      includeBundles: settings.includeBundles,
-      includeDlc: settings.includeDlc,
-      listStyle: settings.listStyle,
-      darkMode: settings.darkMode,
-      loading: false
-    });
+    this.setState({ shops, availableShops, availableRegions, loading: false });
   }
 
   async _toggleIncludeBundles() {
@@ -205,44 +192,42 @@ export default class SettingsScreen extends PureComponent<
   }
 
   _getShopsComponent() {
-    if (this._shops) {
-      return [
-        <ListItem key="all" style={this.state.style.primary}>
+    return [
+      <ListItem key="all" style={this.state.style.primary}>
+        <CheckBox
+          color={this.state.style.checkbox.color}
+          checked={this._isShopSelected("all")}
+          onPress={() => this._toggleAllShopsSelected()}
+        />
+        <Body>
+          <Text style={this.state.style.primary}>All Stores</Text>
+        </Body>
+      </ListItem>
+    ].concat(
+      this.state.availableShops.map(shop => (
+        <ListItem
+          style={this.state.style.primary}
+          key={shop.id}
+          onPress={() => this._toggleShopSelected(shop.id)}
+        >
           <CheckBox
             color={this.state.style.checkbox.color}
-            checked={this._isShopSelected("all")}
-            onPress={() => this._toggleAllShopsSelected()}
+            checked={this._isShopSelected(shop.id)}
+            onPress={() => this._toggleShopSelected(shop.id)}
           />
           <Body>
-            <Text style={this.state.style.primary}>All Stores</Text>
+            <Text style={this.state.style.primary}>
+              {shop.name || shop.title}
+            </Text>
           </Body>
         </ListItem>
-      ].concat(
-        this._shops.map(shop => (
-          <ListItem
-            style={this.state.style.primary}
-            key={shop.id}
-            onPress={() => this._toggleShopSelected(shop.id)}
-          >
-            <CheckBox
-              color={this.state.style.checkbox.color}
-              checked={this._isShopSelected(shop.id)}
-              onPress={() => this._toggleShopSelected(shop.id)}
-            />
-            <Body>
-              <Text style={this.state.style.primary}>
-                {shop.name || shop.title}
-              </Text>
-            </Body>
-          </ListItem>
-        ))
-      );
-    }
+      ))
+    );
   }
 
   _isShopSelected(shopId: string) {
     return shopId == "all"
-      ? this.state.shops.length == this._shops.length
+      ? this.state.shops.length == this.state.availableShops.length
       : this.state.shops.some(s => s == shopId);
   }
 
@@ -259,9 +244,9 @@ export default class SettingsScreen extends PureComponent<
 
   async _toggleAllShopsSelected() {
     const shops =
-      this.state.shops.length == this._shops.length
+      this.state.shops.length == this.state.availableShops.length
         ? []
-        : this._shops.map(shop => shop.id);
+        : this.state.availableShops.map(shop => shop.id);
 
     this.setState({ shops });
 
@@ -269,7 +254,7 @@ export default class SettingsScreen extends PureComponent<
   }
 
   _getRegionsPicker() {
-    const regions = Object.keys(this._regions || {});
+    const regions = Object.keys(this.state.availableRegions || {}).sort();
     if (regions && regions.length > 0) {
       const regionItems = regions.map(region => (
         <Picker.Item key={region} label={region.toUpperCase()} value={region} />
@@ -297,11 +282,12 @@ export default class SettingsScreen extends PureComponent<
     }
 
     const currency =
-      this._regions[region] && this._regions[region].currency
+      this.state.availableRegions[region] &&
+      this.state.availableRegions[region].currency
         ? {
-            sign: this._regions[region].currency.sign,
-            left: this._regions[region].currency.left,
-            code: this._regions[region].currency.code
+            sign: this.state.availableRegions[region].currency.sign,
+            left: this.state.availableRegions[region].currency.left,
+            code: this.state.availableRegions[region].currency.code
           }
         : {
             sign: "",
@@ -330,12 +316,16 @@ export default class SettingsScreen extends PureComponent<
   _getCountriesPicker() {
     if (
       this.state.region &&
-      this._regions[this.state.region] &&
-      this._regions[this.state.region].countries
+      this.state.availableRegions[this.state.region] &&
+      this.state.availableRegions[this.state.region].countries
     ) {
-      const countryItems = this._regions[this.state.region].countries.map(
-        country => <Picker.Item key={country} label={country} value={country} />
-      );
+      const countryItems = this.state.availableRegions[
+        this.state.region
+      ].countries
+        .sort()
+        .map(country => (
+          <Picker.Item key={country} label={country} value={country} />
+        ));
       return (
         <Picker
           style={[this.state.style.primary, { textAlign: "right" }]}

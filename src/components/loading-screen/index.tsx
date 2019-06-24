@@ -6,13 +6,8 @@ export class LoadingScreen extends Component<{}, { style: any }> {
   constructor(props) {
     super(props);
     this.state = {
-      style: {}
+      style: Themes.getThemeStyles()
     };
-  }
-
-  async componentDidMount() {
-    const style = Themes.getThemeStyles();
-    this.setState({ style });
   }
 
   render() {

@@ -4,10 +4,6 @@ import { TouchableOpacity } from "react-native-gesture-handler";
 import { Screens } from "../../screens";
 
 export default class SettingsButton extends Component<{ navigation: any }, {}> {
-  constructor(props) {
-    super(props);
-  }
-
   render() {
     return (
       <TouchableOpacity>

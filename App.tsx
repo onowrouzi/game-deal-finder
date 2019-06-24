@@ -13,6 +13,7 @@ import GameInfoScreen from "./src/screens/game-info";
 import SettingsScreen from "./src/screens/settings";
 import AboutScreen from "./src/screens/about";
 import { Screens } from "./src/screens";
+import WatchlistScreen from "./src/screens/watchlist";
 
 const defaultNavigationOptions = ({ navigation }) => ({
   headerStyle: {
@@ -30,8 +31,22 @@ const DealsStackNavigator = createStackNavigator(
     [Screens.Deals]: {
       screen: DealsScreen
     },
-    [Screens.Settings]: {
-      screen: SettingsScreen
+    [Screens.GameInfo]: {
+      screen: GameInfoScreen
+    },
+    [Screens.Webview]: {
+      screen: WebViewScreen
+    }
+  },
+  {
+    defaultNavigationOptions
+  }
+);
+
+const WatchlistStackNavigator = createStackNavigator(
+  {
+    [Screens.Watchlist]: {
+      screen: WatchlistScreen
     },
     [Screens.GameInfo]: {
       screen: GameInfoScreen
@@ -78,6 +93,18 @@ const MyDrawerNavigator = createDrawerNavigator(
         drawerIcon: ({ tintColor }) => (
           <Icon
             name="dollar-sign"
+            type="Feather"
+            style={{ color: tintColor, fontSize: 20 }}
+          />
+        )
+      }
+    },
+    Watchlist: {
+      screen: WatchlistStackNavigator,
+      navigationOptions: {
+        drawerIcon: ({ tintColor }) => (
+          <Icon
+            name="eye"
             type="Feather"
             style={{ color: tintColor, fontSize: 20 }}
           />

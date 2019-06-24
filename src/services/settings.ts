@@ -3,7 +3,7 @@ import { AsyncStorage } from "react-native";
 import { SettingTypes } from "../types/setting-types.enum";
 
 import { DealListStyle } from "../types/deal-list-style";
-import { Settings } from "../types/settings";
+import { Settings, Currency } from "../types/settings";
 
 export default class SettingsUtility {
   private static _instance: SettingsUtility;
@@ -49,54 +49,31 @@ export default class SettingsUtility {
   }
 
   private static async _init(): Promise<Settings> {
-    const promises = [];
-    promises.push(
-      AsyncStorage.getItem(SettingTypes.CURRENCY, (err, res) => res).then(res =>
-        JSON.parse(res)
-      )
-    );
-    promises.push(AsyncStorage.getItem(SettingTypes.REGION, (err, res) => res));
-    promises.push(
-      AsyncStorage.getItem(SettingTypes.COUNTRY, (err, res) => res)
-    );
-    promises.push(
-      AsyncStorage.getItem(SettingTypes.SHOPS, (err, res) => res).then(
-        res => JSON.parse(res) || []
-      )
-    );
-    promises.push(
-      AsyncStorage.getItem(
+    await AsyncStorage.multiGet(
+      [
+        SettingTypes.CURRENCY,
+        SettingTypes.REGION,
+        SettingTypes.COUNTRY,
+        SettingTypes.SHOPS,
         SettingTypes.INCLUDE_BUNDLES,
-        (err, res) => res
-      ).then(res => res !== "false")
+        SettingTypes.INCLUDE_DLC,
+        SettingTypes.LIST_STYLE,
+        SettingTypes.DARK_MODE
+      ],
+      (err, res) => res
+    ).then(
+      res =>
+        (SettingsUtility._settings = {
+          currency: JSON.parse(res[0][1]) as Currency,
+          region: res[1][1],
+          country: res[2][1],
+          shops: (JSON.parse(res[3][1]) as string[]) || [],
+          includeBundles: res[4][1] !== "false",
+          includeDlc: res[5][1] !== "false",
+          listStyle: res[6][1] as DealListStyle,
+          darkMode: res[7][1] === "true"
+        })
     );
-    promises.push(
-      AsyncStorage.getItem(SettingTypes.INCLUDE_DLC, (err, res) => res).then(
-        res => res !== "false"
-      )
-    );
-    promises.push(
-      AsyncStorage.getItem(SettingTypes.LIST_STYLE, (err, res) => res).then(
-        res => res as DealListStyle
-      )
-    );
-    promises.push(
-      AsyncStorage.getItem(SettingTypes.DARK_MODE, (err, res) => res).then(
-        res => res === "true"
-      )
-    );
-
-    const resolved = await Promise.all(promises);
-
-    return (SettingsUtility._settings = {
-      currency: resolved[0],
-      region: resolved[1],
-      country: resolved[2],
-      shops: resolved[3],
-      includeBundles: resolved[4],
-      includeDlc: resolved[5],
-      listStyle: resolved[6],
-      darkMode: resolved[7]
-    });
+    return SettingsUtility._settings;
   }
 }

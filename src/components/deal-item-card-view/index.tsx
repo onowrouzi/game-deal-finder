@@ -12,8 +12,6 @@ const NO_IMG = require("./../../../assets/no_img.png");
 export default class DealItemCardView extends PureComponent<
   {
     deal: ItadDealFull;
-    currencySign: string;
-    currencyOnLeft: boolean;
     navigation: any;
     style: any;
   },
@@ -67,36 +65,30 @@ export default class DealItemCardView extends PureComponent<
         <CardItem footer bordered style={this.props.style.note}>
           <Left>
             <Text note style={this.props.style.note}>
-              {parsePriceString(
-                this.props.deal.price_new.toFixed(2),
-                this.props.currencySign,
-                this.props.currencyOnLeft
-              )}{" "}
-              @ {this.props.deal.shop.name || this.props.deal.shop.title}
+              {parsePriceString(this.props.deal.price_new.toFixed(2))} @{" "}
+              {this.props.deal.shop.name || this.props.deal.shop.title}
             </Text>
           </Left>
-          <Right>
-            <Text style={this.props.style.note}>
-              <Text note style={this.props.style.note}>
-                -{this.props.deal.price_cut}%{" "}
-              </Text>
-              <Text
-                note
-                style={[
-                  this.props.style.note,
-                  { textDecorationLine: "line-through" }
-                ]}
-              >
-                {parsePriceString(
-                  this.props.deal.price_old.toFixed(2),
-                  this.props.currencySign,
-                  this.props.currencyOnLeft
-                )}
-              </Text>
-            </Text>
-          </Right>
+          <Right>{this._getDiscountText()}</Right>
         </CardItem>
       </Card>
+    );
+  }
+
+  _getDiscountText() {
+    return this.props.deal.price_cut > 0 ? (
+      <Text note>
+        <Text note style={{ textDecorationLine: "line-through", fontSize: 10 }}>
+          {parsePriceString(this.props.deal.price_old.toFixed(2))}
+        </Text>
+        <Text note numberOfLines={1} style={{ fontSize: 10 }}>
+          {`  -${this.props.deal.price_cut}%`}
+        </Text>
+      </Text>
+    ) : (
+      <Text note style={{ fontSize: 10 }}>
+        NO DEAL
+      </Text>
     );
   }
 }

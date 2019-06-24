@@ -2,21 +2,21 @@ import { StyleSheet } from "react-native";
 
 export const lightTheme = StyleSheet.create({
   primary: {
-    backgroundColor: "#fff",
-    color: "#333"
+    backgroundColor: "#ffffff",
+    color: "#333333"
   },
   secondary: {
-    backgroundColor: "#ccc",
+    backgroundColor: "#cccccc",
     color: "#212121"
   },
   note: {
-    backgroundColor: "#fff",
-    color: "#888"
+    backgroundColor: "#ffffff",
+    color: "#888888"
   },
   link: {
     color: "#a655b2"
   },
   checkbox: {
-    color: "#888"
+    color: "#888888"
   }
 });

@@ -24,14 +24,12 @@ export default class AboutScreen extends PureComponent<
     super(props);
 
     this.state = {
-      style: {}
+      style: Themes.getThemeStyles()
     };
     this._setStyles = this._setStyles.bind(this);
   }
 
   async componentDidMount() {
-    this._setStyles();
-
     this.props.navigation.addListener("willFocus", this._setStyles);
   }
 

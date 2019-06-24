@@ -25,6 +25,7 @@ import { Themes } from "../../services/themes";
 import SettingsUtility from "../../services/settings";
 import DealItemListView from "../../components/deal-item-list-view";
 import DealItemCardView from "../../components/deal-item-card-view";
+import EmptyListView from "../../components/empty-list-view";
 
 export default class DealsScreen extends Component<
   { navigation: any },
@@ -56,7 +57,6 @@ export default class DealsScreen extends Component<
 
   private _api: IsThereAnyDealApi;
   private _settings: Settings;
-  private _currency: { sign: string; code: string; left: boolean };
   private _length: number;
   private _offset: number;
   private _query: string;
@@ -68,7 +68,7 @@ export default class DealsScreen extends Component<
   constructor(props) {
     super(props);
     this.state = {
-      style: {},
+      style: Themes.getThemeStyles(),
       list: [],
       showSpinner: false,
       isReady: false,
@@ -113,8 +113,19 @@ export default class DealsScreen extends Component<
             (this.state.list.length - 5) / (this.state.list.length * 1.0)
           }
           onEndReached={async () => this._getDeals()}
+          ListEmptyComponent={() =>
+            this.state.isReady && !this.state.refreshing ? (
+              <EmptyListView
+                message="No Deals Found..."
+                linkMessage="Refresh Results?"
+                linkAction={this._refresh}
+                style={this.state.style}
+              />
+            ) : (
+              <View />
+            )
+          }
         />
-        {this._getNoResultsView()}
         {this._getSpinner()}
         {this._getSearchFab()}
       </Container>
@@ -122,9 +133,6 @@ export default class DealsScreen extends Component<
   }
 
   async componentDidMount() {
-    const style = await Themes.getThemeStyles();
-    this.setState({ style });
-
     this._settings = SettingsUtility.getSettings();
 
     const promises = [];
@@ -244,7 +252,7 @@ export default class DealsScreen extends Component<
       d => d.plain + d.shop.id
     ).filter(
       d =>
-        d.price_cut > 0 &&
+        (d.price_cut > 0 || this._query) &&
         (this._settings.includeDlc || !d.is_dlc) &&
         (this._settings.includeBundles || !d.is_package)
     );
@@ -254,36 +262,6 @@ export default class DealsScreen extends Component<
       showSpinner: false,
       refreshing: false
     });
-  }
-
-  _getNoResultsView() {
-    if (
-      this.state.isReady &&
-      !this.state.refreshing &&
-      this.state.list.length === 0
-    ) {
-      return (
-        <View style={{ flex: 1 }}>
-          <Text
-            style={[
-              this.state.style.primary,
-              { textAlign: "center", fontSize: 20 }
-            ]}
-          >
-            No Deals Found...
-          </Text>
-          <Button transparent full>
-            <Text
-              uppercase={false}
-              style={[this.state.style.link, { fontSize: 20 }]}
-              onPress={() => this._refresh()}
-            >
-              Refresh Results?
-            </Text>
-          </Button>
-        </View>
-      );
-    }
   }
 
   async _refresh(query?: string) {
@@ -311,20 +289,12 @@ export default class DealsScreen extends Component<
         deal={d}
         navigation={this.props.navigation}
         style={this.state.style}
-        currencySign={
-          this._currency ? this._currency.sign || this._currency.code : "$"
-        }
-        currencyOnLeft={!this._currency || this._currency.left}
       />
     ) : (
       <DealItemCardView
         deal={d}
         navigation={this.props.navigation}
         style={this.state.style}
-        currencySign={
-          this._currency ? this._currency.sign || this._currency.code : "$"
-        }
-        currencyOnLeft={!this._currency || this._currency.left}
       />
     );
   }

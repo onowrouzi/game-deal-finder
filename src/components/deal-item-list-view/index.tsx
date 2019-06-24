@@ -13,14 +13,11 @@ import { Screens } from "../../screens";
 
 import { parsePriceString } from "../../services/price-parser";
 import { ItadDealFull } from "itad-api-client-ts";
-
 const NO_IMG = require("./../../../assets/no_img.png");
 
 export default class DealItemListView extends PureComponent<
   {
     deal: ItadDealFull;
-    currencySign: string;
-    currencyOnLeft: boolean;
     navigation: any;
     style: any;
   },
@@ -64,27 +61,10 @@ export default class DealItemListView extends PureComponent<
             {this.props.deal.title}
           </Text>
           <Text note numberOfLines={1} style={{ fontSize: 10 }}>
-            {`${parsePriceString(
-              this.props.deal.price_new.toFixed(2),
-              this.props.currencySign,
-              this.props.currencyOnLeft
-            )} @ ${this.props.deal.shop.title || this.props.deal.shop.name}`}
+            {`${parsePriceString(this.props.deal.price_new.toFixed(2))} @ ${this
+              .props.deal.shop.title || this.props.deal.shop.name}`}
           </Text>
-          <Text>
-            <Text
-              note
-              style={{ textDecorationLine: "line-through", fontSize: 10 }}
-            >
-              {parsePriceString(
-                this.props.deal.price_old.toFixed(2),
-                this.props.currencySign,
-                this.props.currencyOnLeft
-              )}
-            </Text>
-            <Text note numberOfLines={1} style={{ fontSize: 10 }}>
-              {`  -${this.props.deal.price_cut}%`}
-            </Text>
-          </Text>
+          {this._getDiscountText()}
         </Body>
         <Right>
           <Button
@@ -100,6 +80,23 @@ export default class DealItemListView extends PureComponent<
           </Button>
         </Right>
       </ListItem>
+    );
+  }
+
+  _getDiscountText() {
+    return this.props.deal.price_cut > 0 ? (
+      <Text note>
+        <Text note style={{ textDecorationLine: "line-through", fontSize: 10 }}>
+          {parsePriceString(this.props.deal.price_old.toFixed(2))}
+        </Text>
+        <Text note numberOfLines={1} style={{ fontSize: 10 }}>
+          {`  -${this.props.deal.price_cut}%`}
+        </Text>
+      </Text>
+    ) : (
+      <Text note style={{ fontSize: 10 }}>
+        NO DEAL
+      </Text>
     );
   }
 }

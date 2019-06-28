@@ -3,12 +3,12 @@ import { SettingTypes } from "../types/setting-types.enum";
 import { darkTheme } from "../themes/dark-theme";
 import { lightTheme } from "../themes/light-theme";
 
-export class Themes {
+export default class ThemesUtility {
   private static _styles: any;
 
   static init = async () => {
-    if (Themes._styles) {
-      return Themes._styles;
+    if (ThemesUtility._styles) {
+      return ThemesUtility._styles;
     }
 
     const darkModeEnabled = await AsyncStorage.getItem(
@@ -16,17 +16,17 @@ export class Themes {
       (err, res) => res
     ).then(res => res === "true");
 
-    Themes._styles = darkModeEnabled ? darkTheme : lightTheme;
-    return Themes._styles;
+    ThemesUtility._styles = darkModeEnabled ? darkTheme : lightTheme;
+    return ThemesUtility._styles;
   };
 
   static getThemeStyles = () => {
-    return Themes._styles || darkTheme;
+    return ThemesUtility._styles || darkTheme;
   };
 
   static setThemeStyles = (darkModeEnabled: boolean) => {
-    Themes._styles = darkModeEnabled ? darkTheme : lightTheme;
+    ThemesUtility._styles = darkModeEnabled ? darkTheme : lightTheme;
 
-    return Themes._styles;
+    return ThemesUtility._styles;
   };
 }

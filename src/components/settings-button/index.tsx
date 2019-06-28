@@ -1,7 +1,7 @@
 import React, { Component } from "react";
 import { Button, Icon } from "native-base";
 import { TouchableOpacity } from "react-native-gesture-handler";
-import { Screens } from "../../screens";
+import { Screens } from "../../types/screens";
 
 export default class SettingsButton extends Component<{ navigation: any }, {}> {
   render() {

@@ -8,15 +8,22 @@ import {
 } from "itad-api-client-ts";
 import { Text, Card, CardItem, Content, Right, Left } from "native-base";
 import { uniqBy, orderBy } from "lodash";
-import { AsyncStorage, Image, TouchableOpacity } from "react-native";
+import {
+  AsyncStorage,
+  Image,
+  TouchableOpacity,
+  View,
+  Dimensions
+} from "react-native";
 
 import { API_KEY } from "react-native-dotenv";
-import { Screens } from "..";
-import { parsePriceString } from "../../services/price-parser";
-import { Themes } from "../../services/themes";
-import { LoadingScreen } from "../../components/loading-screen";
+import { parsePriceString } from "../../utilities/price-parser";
+import ThemesUtility from "../../utilities/themes";
+import LoadingScreen from "../../components/loading-screen";
 import WatchlistButton from "../../components/watchlist-button";
 import { SettingTypes } from "../../types/setting-types.enum";
+import OwnedButton from "../../components/owned-button";
+import { Screens } from "../../types/screens";
 
 export default class GameInfoScreen extends Component<
   { navigation: any },
@@ -29,7 +36,15 @@ export default class GameInfoScreen extends Component<
 > {
   static navigationOptions = ({ navigation }) => ({
     title: `${navigation.state.params.title}`,
-    headerRight: <WatchlistButton plain={navigation.state.params.plain} />
+    headerTitleStyle: {
+      width: Dimensions.get("window").width / 2
+    },
+    headerRight: (
+      <View style={{ flexDirection: "row" }}>
+        <OwnedButton plain={navigation.state.params.plain} />
+        <WatchlistButton plain={navigation.state.params.plain} />
+      </View>
+    )
   });
 
   private _api: IsThereAnyDealApi;
@@ -40,7 +55,7 @@ export default class GameInfoScreen extends Component<
     super(props);
 
     this.state = {
-      style: Themes.getThemeStyles()
+      style: ThemesUtility.getThemeStyles()
     };
     this._api = new IsThereAnyDealApi(API_KEY);
     this._plain = this.props.navigation.getParam("plain", "");
@@ -93,12 +108,14 @@ export default class GameInfoScreen extends Component<
       });
 
     const history = resolved[2][this._plain] as ItadHistoricalGameInfo;
-    history.shop =
-      this._shops.find(shop => shop.id == history.shop.id) || history.shop;
-    history.shop.color = this._getAdjustedShopColor(
-      history.shop.color || this.state.style.primary.color,
-      pageColorBrightness
-    );
+    if (history.shop) {
+      history.shop =
+        this._shops.find(shop => shop.id == history.shop.id) || history.shop;
+      history.shop.color = this._getAdjustedShopColor(
+        history.shop.color || this.state.style.primary.color,
+        pageColorBrightness
+      );
+    }
 
     this.setState({
       game,
@@ -130,12 +147,7 @@ export default class GameInfoScreen extends Component<
           </CardItem>
           {this._getDealsComponents()}
         </Card>
-        <Card style={this.state.style.primary}>
-          <CardItem header bordered style={this.state.style.secondary}>
-            <Text style={this.state.style.secondary}>Historical Low</Text>
-          </CardItem>
-          {this._getHistoricalLowComponent()}
-        </Card>
+        {this._getHistoricalLowComponent()}
       </Content>
     );
   }
@@ -193,32 +205,37 @@ export default class GameInfoScreen extends Component<
   }
 
   _getHistoricalLowComponent() {
-    if (this.state.history) {
+    if (this.state.history && this.state.history.shop) {
       return (
-        <CardItem style={this.state.style.primary}>
-          <Left>
-            <Text
-              style={[
-                this.state.style.primary,
-                {
-                  color: this.state.history.shop.color,
-                  fontWeight: "bold"
-                }
-              ]}
-            >
-              {this.state.history.shop.title || this.state.history.shop.name}
-            </Text>
-          </Left>
-          <Right style={this.state.style.primary}>
-            <Text note numberOfLines={1} style={[{ fontSize: 10 }]}>
-              {`${parsePriceString(this.state.history.price.toFixed(2))}    -${
-                this.state.history.cut
-              }%    (${new Date(
-                this.state.history.added * 1000
-              ).toLocaleDateString()})`}
-            </Text>
-          </Right>
-        </CardItem>
+        <Card style={this.state.style.primary}>
+          <CardItem header bordered style={this.state.style.secondary}>
+            <Text style={this.state.style.secondary}>Historical Low</Text>
+          </CardItem>
+          <CardItem style={this.state.style.primary}>
+            <Left>
+              <Text
+                style={[
+                  this.state.style.primary,
+                  {
+                    color: this.state.history.shop.color,
+                    fontWeight: "bold"
+                  }
+                ]}
+              >
+                {this.state.history.shop.title || this.state.history.shop.name}
+              </Text>
+            </Left>
+            <Right style={this.state.style.primary}>
+              <Text note numberOfLines={1} style={[{ fontSize: 10 }]}>
+                {`${parsePriceString(
+                  this.state.history.price.toFixed(2)
+                )}    -${this.state.history.cut}%    (${new Date(
+                  this.state.history.added * 1000
+                ).toLocaleDateString()})`}
+              </Text>
+            </Right>
+          </CardItem>
+        </Card>
       );
     }
   }

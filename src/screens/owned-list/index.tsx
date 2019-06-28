@@ -2,8 +2,8 @@ import React, { Component } from "react";
 import LoadingScreen from "../../components/loading-screen";
 import { IsThereAnyDealApi, ItadDealFull } from "itad-api-client-ts";
 import { API_KEY } from "react-native-dotenv";
-import { Container, Icon, Button } from "native-base";
-import { FlatList, TouchableOpacity } from "react-native-gesture-handler";
+import { Container } from "native-base";
+import { FlatList, Alert } from "react-native";
 import { Screens } from "../../types/screens";
 import ThemesUtility from "../../utilities/themes";
 import MenuButton from "../../components/menu-button";
@@ -12,11 +12,11 @@ import SettingsUtility from "../../utilities/settings";
 import DealItemListView from "../../components/deal-item-list-view";
 import DealItemCardView from "../../components/deal-item-card-view";
 import EmptyListView from "../../components/empty-list-view";
+import { uniq } from "lodash";
 import DeleteButton from "../../components/delete-button";
 import UserDataUtility from "../../utilities/user-data";
-import { Alert } from "react-native";
 
-export default class WatchlistScreen extends Component<
+export default class OwnedListScreen extends Component<
   { navigation: any },
   { style: any; loading: boolean; refreshing: boolean; list: ItadDealFull[] }
 > {
@@ -32,7 +32,7 @@ export default class WatchlistScreen extends Component<
   });
 
   private _api: IsThereAnyDealApi;
-  private _watchlist: string[];
+  private _ownedList: string[];
   private _willFocusSub: any;
   private _settings: Settings;
 
@@ -45,6 +45,7 @@ export default class WatchlistScreen extends Component<
       list: [],
       style: ThemesUtility.getThemeStyles()
     };
+
     this._api = new IsThereAnyDealApi(API_KEY);
     this._settings = SettingsUtility.getSettings();
 
@@ -62,7 +63,7 @@ export default class WatchlistScreen extends Component<
 
   async _willFocus() {
     this.setState({ style: ThemesUtility.getThemeStyles() });
-    await this._getWatchlist();
+    await this._getOwnedList();
   }
 
   componentWillUnmount() {
@@ -76,13 +77,13 @@ export default class WatchlistScreen extends Component<
       <Container style={this.state.style.primary}>
         <FlatList
           data={this.state.list}
-          onRefresh={async () => await this._getWatchlist()}
+          onRefresh={async () => await this._getOwnedList()}
           refreshing={this.state.refreshing}
           renderItem={({ item }) => this._getListItemComponent(item)}
-          keyExtractor={(item, index) => item.title}
+          keyExtractor={(item, index) => item.plain}
           ListEmptyComponent={() => (
             <EmptyListView
-              message="Your watchlist is empty!"
+              message="Your owned games list is empty!"
               linkMessage="Wanna check out some deals?"
               linkAction={() => this.props.navigation.navigate(Screens.Deals)}
               style={this.state.style}
@@ -96,14 +97,14 @@ export default class WatchlistScreen extends Component<
   async _clearList() {
     Alert.alert(
       "Are you sure?",
-      "Would you like empty your watchlist?",
+      "Would you like to empty your owned games list?",
       [
         { text: "NO", onPress: () => {} },
         {
           text: "YES",
           onPress: async () => {
-            await UserDataUtility.setWatchlist([]);
-            await this._getWatchlist();
+            await UserDataUtility.setOwnedGames([]);
+            await this._getOwnedList();
           }
         }
       ],
@@ -113,37 +114,49 @@ export default class WatchlistScreen extends Component<
     );
   }
 
-  async _getWatchlist() {
-    this._watchlist = UserDataUtility.getWatchlist();
+  async _getOwnedList() {
+    this._ownedList = uniq(UserDataUtility.getOwnedGames());
 
     let list = [];
 
-    if (this._watchlist && this._watchlist.length > 0) {
-      const gamesInfo = await this._api.getGameInfo(this._watchlist);
-      const prices = await this._api.getGamePrices({
-        plains: this._watchlist,
-        shops: this._settings.shops,
-        region: this._settings.region,
-        country: this._settings.country
-      });
-      list = gamesInfo
-        ? Object.keys(gamesInfo)
-            .filter(key => key)
-            .map(key => {
-              const bestPrice = prices[key].list.sort(
-                (p1, p2) => (p1.price_new = p2.price_new)
-              )[0];
-              return Object.assign(gamesInfo[key], bestPrice, {
-                plain: key
-              }) as ItadDealFull;
-            })
-            .sort((a, b) =>
-              a.title.replace(/[^\w\s]/g, "").toLowerCase() <
-              b.title.replace(/[^\w\s]/g, "").toLowerCase()
-                ? -1
-                : 1
-            )
-        : [];
+    if (this._ownedList && this._ownedList.length > 0) {
+      for (let i = 0; i < this._ownedList.length; i += 100) {
+        const end =
+          i + 100 < this._ownedList.length
+            ? i + 100
+            : this._ownedList.length - i;
+        const plains = this._ownedList.slice(i, end);
+
+        if (plains.length > 0) {
+          const gamesInfo = await this._api.getGameInfo(plains);
+          const prices = await this._api.getGamePrices({
+            plains,
+            shops: this._settings.shops,
+            region: this._settings.region,
+            country: this._settings.country
+          });
+          list = list.concat(
+            gamesInfo
+              ? Object.keys(gamesInfo)
+                  .filter(key => key)
+                  .map(key => {
+                    const bestPrice = prices[key].list.sort(
+                      (p1, p2) => (p1.price_new = p2.price_new)
+                    )[0];
+                    return Object.assign(gamesInfo[key], bestPrice, {
+                      plain: key
+                    }) as ItadDealFull;
+                  })
+                  .sort((a, b) =>
+                    a.title.replace(/[^\w\s]/g, "").toLowerCase() <
+                    b.title.replace(/[^\w\s]/g, "").toLowerCase()
+                      ? -1
+                      : 1
+                  )
+              : []
+          );
+        }
+      }
     }
 
     this.setState({ list, loading: false });

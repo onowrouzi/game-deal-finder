@@ -9,19 +9,28 @@ import {
   Button,
   Icon,
   Right,
-  CheckBox
+  CheckBox,
+  Container,
+  H1,
+  Item,
+  Input,
+  Spinner,
+  H3
 } from "native-base";
 import { ItadShop, ItadRegions, IsThereAnyDealApi } from "itad-api-client-ts";
 import { API_KEY } from "react-native-dotenv";
-import { Picker, Switch } from "react-native";
+import { Picker, Switch, ToastAndroid, Modal, Dimensions } from "react-native";
 import { Settings } from "../../types/settings";
 import { DealListStyle } from "../../types/deal-list-style";
 import { SettingTypes } from "../../types/setting-types.enum";
 import { TouchableOpacity } from "react-native-gesture-handler";
-import { Screens } from "..";
-import { Themes } from "../../services/themes";
-import SettingsUtility from "../../services/settings";
-import { LoadingScreen } from "../../components/loading-screen";
+import { Screens } from "../../types/screens";
+import ThemesUtility from "../../utilities/themes";
+import SettingsUtility from "../../utilities/settings";
+import LoadingScreen from "../../components/loading-screen";
+import GamesSyncer from "../../utilities/syncer";
+import { SyncInfo } from "../../types/sync-info";
+import UserDataUtility from "../../utilities/user-data";
 
 export default class SettingsScreen extends PureComponent<
   { navigation: any },
@@ -29,6 +38,10 @@ export default class SettingsScreen extends PureComponent<
     style: any;
     availableShops: ItadShop[];
     availableRegions: ItadRegions;
+    syncInfo?: SyncInfo;
+    steamProfileUrl?: string;
+    modalVisible: boolean;
+    syncing: boolean;
     loading: boolean;
   }
 > {
@@ -47,11 +60,13 @@ export default class SettingsScreen extends PureComponent<
   });
 
   private _api: IsThereAnyDealApi;
+  private _syncer: GamesSyncer;
 
   constructor(props) {
     super(props);
 
     const settings = SettingsUtility.getSettings();
+    const syncInfo = UserDataUtility.getSyncInfo().find(i => i.shop == "steam");
 
     this.state = {
       shops: settings.shops,
@@ -61,13 +76,21 @@ export default class SettingsScreen extends PureComponent<
       includeDlc: settings.includeDlc,
       listStyle: settings.listStyle,
       darkMode: settings.darkMode,
-      style: Themes.getThemeStyles(),
+      style: ThemesUtility.getThemeStyles(),
       availableRegions: {},
       availableShops: [],
+      syncInfo,
+      steamProfileUrl: syncInfo ? syncInfo.profile_url : "",
+      modalVisible: false,
+      syncing: false,
       loading: true
     };
 
     this._api = new IsThereAnyDealApi(API_KEY);
+    this._syncer = new GamesSyncer();
+
+    this._isValidSteamProfileUrl = this._isValidSteamProfileUrl.bind(this);
+    this._syncSteamLibrary = this._syncSteamLibrary.bind(this);
   }
 
   async componentDidMount() {
@@ -119,7 +142,7 @@ export default class SettingsScreen extends PureComponent<
               />
             </Right>
           </ListItem>
-          <ListItem key="liststyle">
+          <ListItem key="liststyle" noBorder style={{ maxHeight: 60 }}>
             <Left>
               <Text style={this.state.style.primary}>List Style</Text>
             </Left>
@@ -158,11 +181,15 @@ export default class SettingsScreen extends PureComponent<
             <Right>
               <Switch
                 value={this.state.includeBundles}
-                onValueChange={async => this._toggleIncludeBundles()}
+                onValueChange={async () => this._toggleIncludeBundles()}
               />
             </Right>
           </ListItem>
-          <ListItem key="region" style={this.state.style.primary}>
+          <ListItem
+            key="region"
+            style={{ maxHeight: 60 }}
+            noBorder={this.state.region == null}
+          >
             <Left>
               <Text style={this.state.style.primary}>Region</Text>
             </Left>
@@ -170,10 +197,133 @@ export default class SettingsScreen extends PureComponent<
           </ListItem>
           {this._getCountriesSection()}
           <ListItem itemDivider style={this.state.style.secondary}>
+            <Text style={this.state.style.secondary}>Sync (BETA)</Text>
+          </ListItem>
+          <TouchableOpacity
+            onPress={() => this.setState({ modalVisible: true })}
+          >
+            <ListItem style={[this.state.style.primary]} noBorder>
+              <Left>
+                <Text style={[this.state.style.primary, { fontSize: 16 }]}>
+                  Steam
+                </Text>
+              </Left>
+              {(() => {
+                if (this.state.syncInfo && this.state.syncInfo.last_sync) {
+                  const lastSync = new Date(this.state.syncInfo.last_sync);
+                  return (
+                    <Body>
+                      <Text
+                        style={[this.state.style.primary, { fontSize: 12 }]}
+                      >
+                        Last Sync:
+                      </Text>
+                      <Text
+                        note
+                        numberOfLines={1}
+                        style={[this.state.style.primary, { fontSize: 10 }]}
+                      >
+                        {lastSync.toLocaleString()}
+                      </Text>
+                    </Body>
+                  );
+                }
+              })()}
+              <Right>
+                <Icon
+                  name="sync"
+                  type="AntDesign"
+                  style={[this.state.style.primary, { fontSize: 16 }]}
+                />
+              </Right>
+            </ListItem>
+          </TouchableOpacity>
+          <ListItem itemDivider style={this.state.style.secondary}>
             <Text style={this.state.style.secondary}>Stores</Text>
           </ListItem>
           {this._getShopsComponent()}
         </List>
+        <Modal
+          visible={this.state.modalVisible}
+          onRequestClose={() => this.setState({ modalVisible: false })}
+        >
+          <Container style={[this.state.style.primary, { padding: 20 }]}>
+            <H1
+              style={[
+                this.state.style.primary,
+                { textAlign: "center", marginBottom: 20 }
+              ]}
+            >
+              STEAM SYNC
+            </H1>
+            <Item
+              success={this._isValidSteamProfileUrl(this.state.steamProfileUrl)}
+            >
+              <Input
+                style={[this.state.style.primary, { fontSize: 12 }]}
+                placeholder="https://steamcommunity.com/profiles/123456"
+                value={this.state.steamProfileUrl}
+                onChangeText={steamProfileUrl =>
+                  this.setState({ steamProfileUrl })
+                }
+                onEndEditing={this._syncSteamLibrary}
+              />
+              <Button
+                transparent
+                style={[this.state.style.primary, { fontSize: 16 }]}
+                disabled={
+                  !this._isValidSteamProfileUrl(this.state.steamProfileUrl)
+                }
+                onPress={this._syncSteamLibrary}
+              >
+                {(() =>
+                  this.state.syncing ? (
+                    <Spinner size="small" />
+                  ) : (
+                    <Icon name="sync" type="AntDesign" />
+                  ))()}
+              </Button>
+            </Item>
+            <Item
+              style={[
+                this.state.style.primary,
+                { marginTop: 60, marginBottom: 20, paddingBottom: 10 }
+              ]}
+            >
+              <Icon
+                name="info"
+                type="Feather"
+                style={this.state.style.primary}
+              />
+              <H3 style={[this.state.style.primary, { textAlign: "center" }]}>
+                How To Sync Steam Library
+              </H3>
+            </Item>
+            <Item
+              style={[this.state.style.primary, { borderColor: "transparent" }]}
+            >
+              <Text
+                style={[
+                  this.state.style.primary,
+                  { fontSize: 12, flex: 1, flexWrap: "wrap", marginTop: 10 }
+                ]}
+              >
+                {`Paste your profile url into the text box above.
+
+It should look something like this:
+
+https://steamcommunity.com/id/username
+                              OR 
+https://steamcommunity.com/profiles/12345678 
+
+In order to sync your steam library it must be public.
+
+All data gathered is persisted solely in your device's storage. 
+Nothing gets sent to any cloud or server with the exception of mapping game id's to id's in IsThereAnyDeal.`}
+              </Text>
+            </Item>
+          </Container>
+        </Modal>
       </Content>
     );
   }
@@ -187,7 +337,7 @@ export default class SettingsScreen extends PureComponent<
     const darkMode = !this.state.darkMode;
     this.setState({ darkMode, loading: true });
     await SettingsUtility.setSetting(SettingTypes.DARK_MODE, darkMode);
-    const style = Themes.setThemeStyles(darkMode);
+    const style = ThemesUtility.setThemeStyles(darkMode);
     this.setState({ style, loading: false });
   }
 
@@ -303,7 +453,7 @@ export default class SettingsScreen extends PureComponent<
   _getCountriesSection() {
     if (this.state.region) {
       return (
-        <ListItem key="country" style={this.state.style.primary}>
+        <ListItem key="country" style={{ maxHeight: 60 }} noBorder>
           <Left>
             <Text style={this.state.style.primary}>Country</Text>
           </Left>
@@ -345,5 +495,39 @@ export default class SettingsScreen extends PureComponent<
   async _setCountry(country: string) {
     this.setState({ country: country == "0" ? "" : country });
     await SettingsUtility.setSetting(SettingTypes.COUNTRY, country);
+  }
+
+  _isValidSteamProfileUrl(url: string) {
+    return /^((http|https):\/\/?)((www\.)?)(steamcommunity.com\/)(id|profiles)(\/\w{3,})$/.test(
+      (url || "").toLowerCase()
+    );
+  }
+
+  async _syncSteamLibrary() {
+    let toastMessage;
+
+    if (this._isValidSteamProfileUrl(this.state.steamProfileUrl)) {
+      this.setState({ syncing: true });
+
+      const syncStatus = await this._syncer.syncSteamLibrary(
+        this.state.steamProfileUrl
+      );
+
+      toastMessage = syncStatus.library
+        ? "Successfully synced steam library!"
+        : "Something went wrong...";
+
+      const syncInfo = UserDataUtility.getSyncInfo();
+      this.setState({
+        syncInfo: syncInfo.find(i => i.shop == "steam"),
+        syncing: false
+      });
+    }
+
+    ToastAndroid.showWithGravity(
+      toastMessage,
+      ToastAndroid.SHORT,
+      ToastAndroid.CENTER
+    );
   }
 }

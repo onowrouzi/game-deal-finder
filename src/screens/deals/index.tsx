@@ -2,8 +2,6 @@ import React, { Component } from "react";
 import { FlatList, View, BackHandler, Alert } from "react-native";
 import { uniqBy, isEqual } from "lodash";
 import {
-  Text,
-  Button,
   Spinner,
   Icon,
   Fab,
@@ -21,11 +19,13 @@ import MenuButton from "../../components/menu-button";
 import RefreshButton from "../../components/refresh-button";
 import SettingsButton from "../../components/settings-button";
 import { Settings } from "../../types/settings";
-import { Themes } from "../../services/themes";
-import SettingsUtility from "../../services/settings";
+import ThemesUtility from "../../utilities/themes";
+import SettingsUtility from "../../utilities/settings";
 import DealItemListView from "../../components/deal-item-list-view";
 import DealItemCardView from "../../components/deal-item-card-view";
 import EmptyListView from "../../components/empty-list-view";
+import { AppLoading } from "expo";
+import UserDataUtility from "../../utilities/user-data";
 
 export default class DealsScreen extends Component<
   { navigation: any },
@@ -36,7 +36,6 @@ export default class DealsScreen extends Component<
     isReady: boolean;
     refreshing: boolean;
     showSearchBar: boolean;
-    changingStyles: boolean;
   }
 > {
   static navigationOptions = ({ navigation }) => ({
@@ -68,18 +67,19 @@ export default class DealsScreen extends Component<
   constructor(props) {
     super(props);
     this.state = {
-      style: Themes.getThemeStyles(),
+      style: {},
       list: [],
       showSpinner: false,
       isReady: false,
-      refreshing: true,
-      showSearchBar: false,
-      changingStyles: false
+      refreshing: false,
+      showSearchBar: false
     };
     this._api = new IsThereAnyDealApi(API_KEY);
     this._length = -1;
     this._offset = 0;
 
+    this._init = this._init.bind(this);
+    this._getDeals = this._getDeals.bind(this);
     this._refresh = this._refresh.bind(this);
     this._didFocus = this._didFocus.bind(this);
     this._willBlur = this._willBlur.bind(this);
@@ -99,6 +99,20 @@ export default class DealsScreen extends Component<
   }
 
   render() {
+    if (!this.state.isReady) {
+      return (
+        <AppLoading
+          startAsync={this._init}
+          onFinish={() => {
+            this.setState({
+              isReady: true,
+              style: ThemesUtility.getThemeStyles()
+            });
+          }}
+        />
+      );
+    }
+
     return (
       <Container style={this.state.style.primary}>
         {this._getSearchBar()}
@@ -132,22 +146,34 @@ export default class DealsScreen extends Component<
     );
   }
 
+  async _init() {
+    try {
+      const promises = [];
+      promises.push(ThemesUtility.init());
+      promises.push(SettingsUtility.init());
+      promises.push(UserDataUtility.init());
+      promises.push(
+        Font.loadAsync({
+          Roboto: require("./../../../node_modules/native-base/Fonts/Roboto.ttf"),
+          Roboto_medium: require("./../../../node_modules/native-base/Fonts/Roboto_medium.ttf"),
+          ...Ionicons.font
+        })
+      );
+
+      await Promise.all(promises);
+
+      this._settings = SettingsUtility.getSettings();
+      await this._getDeals();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
   async componentDidMount() {
-    this._settings = SettingsUtility.getSettings();
-
-    const promises = [];
-    promises.push(this._getDeals());
-    promises.push(
-      Font.loadAsync({
-        Roboto: require("./../../../node_modules/native-base/Fonts/Roboto.ttf"),
-        Roboto_medium: require("./../../../node_modules/native-base/Fonts/Roboto_medium.ttf"),
-        ...Ionicons.font
-      })
-    );
-
-    await Promise.all(promises);
-
-    this.setState({ isReady: true });
+    if (this.state.isReady) {
+      this._settings = SettingsUtility.getSettings();
+      await this._getDeals();
+    }
 
     this.props.navigation.setParams({ refresh: this._refresh });
   }
@@ -159,7 +185,7 @@ export default class DealsScreen extends Component<
   }
 
   async _willFocus() {
-    const style = Themes.getThemeStyles();
+    const style = ThemesUtility.getThemeStyles();
     if (!isEqual(style, this.state.style)) {
       this.setState({ style });
     }

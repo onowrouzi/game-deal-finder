@@ -61,19 +61,18 @@ export default class SettingsUtility {
         SettingTypes.DARK_MODE
       ],
       (err, res) => res
-    ).then(
-      res =>
-        (SettingsUtility._settings = {
-          currency: JSON.parse(res[0][1]) as Currency,
-          region: res[1][1],
-          country: res[2][1],
-          shops: (JSON.parse(res[3][1]) as string[]) || [],
-          includeBundles: res[4][1] !== "false",
-          includeDlc: res[5][1] !== "false",
-          listStyle: res[6][1] as DealListStyle,
-          darkMode: res[7][1] === "true"
-        })
-    );
+    ).then(res => {
+      SettingsUtility._settings = {
+        currency: JSON.parse(res[0][1]) as Currency,
+        region: res[1][1],
+        country: res[2][1],
+        shops: (JSON.parse(res[3][1]) as string[]) || [],
+        includeBundles: res[4][1] !== "false",
+        includeDlc: res[5][1] !== "false",
+        listStyle: res[6][1] as DealListStyle,
+        darkMode: res[7][1] === "true"
+      };
+    });
     return SettingsUtility._settings;
   }
 }

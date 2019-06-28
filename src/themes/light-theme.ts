@@ -3,11 +3,11 @@ import { StyleSheet } from "react-native";
 export const lightTheme = StyleSheet.create({
   primary: {
     backgroundColor: "#ffffff",
-    color: "#333333"
+    color: "#444444"
   },
   secondary: {
     backgroundColor: "#cccccc",
-    color: "#212121"
+    color: "#333333"
   },
   note: {
     backgroundColor: "#ffffff",

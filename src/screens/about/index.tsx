@@ -10,8 +10,8 @@ import {
   Text
 } from "native-base";
 import MenuButton from "../../components/menu-button";
-import { Screens } from "..";
-import { Themes } from "../../services/themes";
+import { Screens } from "../../types/screens";
+import ThemesUtility from "../../utilities/themes";
 
 export default class AboutScreen extends PureComponent<
   { navigation: any },
@@ -24,7 +24,7 @@ export default class AboutScreen extends PureComponent<
     super(props);
 
     this.state = {
-      style: Themes.getThemeStyles()
+      style: ThemesUtility.getThemeStyles()
     };
     this._setStyles = this._setStyles.bind(this);
   }
@@ -34,7 +34,7 @@ export default class AboutScreen extends PureComponent<
   }
 
   _setStyles() {
-    const style = Themes.getThemeStyles();
+    const style = ThemesUtility.getThemeStyles();
     this.setState({ style });
   }
 

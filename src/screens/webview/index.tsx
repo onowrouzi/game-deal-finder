@@ -1,7 +1,7 @@
 import React, { Component } from "react";
 import { WebView, WebViewUriSource, BackHandler } from "react-native";
-import { LoadingScreen } from "../../components/loading-screen";
-import { Themes } from "../../services/themes";
+import LoadingScreen from "../../components/loading-screen";
+import ThemesUtility from "../../utilities/themes";
 
 export default class WebViewScreen extends Component<
   { navigation: any },
@@ -18,7 +18,7 @@ export default class WebViewScreen extends Component<
     super(props);
 
     const uri = this.props.navigation.getParam("uri", "");
-    this.state = { source: { uri }, style: Themes.getThemeStyles() };
+    this.state = { source: { uri }, style: ThemesUtility.getThemeStyles() };
 
     this._canGoBack = false;
     this._onBackPress = this._onBackPress.bind(this);

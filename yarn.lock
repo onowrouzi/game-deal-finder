@@ -2348,7 +2348,7 @@ expo-task-manager@~5.0.1:
   resolved "https://registry.yarnpkg.com/expo-task-manager/-/expo-task-manager-5.0.1.tgz#18e0a2a7539617d7731c3e4e9bedcf0a3574577b"
   integrity sha512-ManMdoYH++K2ZaRCYc2hfi1N33XTzjn1o1O8Qkj8JH49VssOzW9TF1URw2j+qRt3iN5Iba4+ECONoi++GoCiqw==
 
-expo-web-browser@~5.0.2, expo-web-browser@~5.0.3:
+expo-web-browser@~5.0.3:
   version "5.0.3"
   resolved "https://registry.yarnpkg.com/expo-web-browser/-/expo-web-browser-5.0.3.tgz#c382358ece64a4fad5a5996795faea3446072298"
   integrity sha512-Etue3QfBki4shFChsVd3Of3xvY7KsXoNINKvckiRCmcCjOC5bGiZ+Grhf70YEHVUB2bEcAUeZhC9Tg0Ip2tdEQ==
@@ -3228,10 +3228,10 @@ isomorphic-fetch@^2.1.1:
     node-fetch "^1.0.1"
     whatwg-fetch ">=0.10.0"
 
-itad-api-client-ts@^1.0.3:
-  version "1.0.3"
-  resolved "https://registry.yarnpkg.com/itad-api-client-ts/-/itad-api-client-ts-1.0.3.tgz#01924a6cf4a40b5ebcac15f7e5f3955e032b3718"
-  integrity sha512-d4r3YSMj4izqcBZlUHAWoPvkgpig+4Beoe4sSefngxDX7XK68X69ZiM6OI7ek0QRq8KLeIuxUc8i939J3s+0iw==
+itad-api-client-ts@^1.0.4:
+  version "1.0.4"
+  resolved "https://registry.yarnpkg.com/itad-api-client-ts/-/itad-api-client-ts-1.0.4.tgz#f97688770c79b2b29d4baa4541d37bbc18eace01"
+  integrity sha512-C0ZAS45Wruc6ZR5rWQOmxa8XOThv+wsOai9u7cEcS2ll5RnGUesyzXBqVgI1dc8HZ/nFlFVMCcri4ujZ5b7S6w==
   dependencies:
     axios "^0.19.0"
     dotenv "^8.0.0"
@@ -5511,6 +5511,11 @@ static-extend@^0.1.1:
   resolved "https://registry.yarnpkg.com/statuses/-/statuses-1.5.0.tgz#161c7dac177659fd9811f43771fa99381478628c"
   integrity sha1-Fhx9rBd2Wf2YEfQ3cfqZOBR4Yow=
 
+steamapi@^2.0.7:
+  version "2.1.2"
+  resolved "https://registry.yarnpkg.com/steamapi/-/steamapi-2.1.2.tgz#e087c4af7eb40f8206fc438887132a43bf28e873"
+  integrity sha512-yKvmaDCKr4j2dE6s9pcniWekq9MLbq4uu1USrNmyeZ/RF1a4gts2ePIsOOQ8e+55J1nW60/Y2x6bZmLswnIADg==
+
 stream-buffers@~2.2.0:
   version "2.2.0"
   resolved "https://registry.yarnpkg.com/stream-buffers/-/stream-buffers-2.2.0.tgz#91d5f5130d1cef96dcfa7f726945188741d09ee4"
@@ -6015,9 +6020,9 @@ xtend@~4.0.1:
   integrity sha1-pcbVMr5lbiPbgg77lDofBJmNY68=
 
 y18n@^3.2.1:
-  version "3.2.1"
-  resolved "https://registry.yarnpkg.com/y18n/-/y18n-3.2.1.tgz#6d15fba884c08679c0d77e88e7759e811e07fa41"
-  integrity sha1-bRX7qITAhnnA136I53WegR4H+kE=
+  version "3.2.2"
+  resolved "https://registry.yarnpkg.com/y18n/-/y18n-3.2.2.tgz#85c901bd6470ce71fc4bb723ad209b70f7f28696"
+  integrity sha512-uGZHXkHnhF0XeeAPgnKfPv1bgKAYyVvmNL1xlKsPYZPaIHxGti2hHqvOCQv71XMsLxu1QjergkqogUnms5D3YQ==
 
 yallist@^2.1.2:
   version "2.1.2"

@@ -8,7 +8,7 @@
     "eject": "expo eject"
   },
   "dependencies": {
-    "expo": "^33.0.0",
+    "expo": "^46.0.14",
     "expo-font": "~5.0.1",
     "itad-api-client-ts": "^1.0.4",
     "native-base": "^2.12.1",
